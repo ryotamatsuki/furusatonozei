@@ -6,7 +6,6 @@ from pathlib import Path
 import requests
 from openpyxl import load_workbook
 
-# Temporary build helper: downloads official source files only during the build.
 SOURCES = {
     "2020_receipts": "https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/file/results20210730-01.xlsx",
     "2020_tax": "https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/file/results20210730-03.xlsx",
@@ -24,8 +23,7 @@ SOURCES = {
 def clean(value):
     if value is None:
         return None
-    text = str(value).replace("\n", " ").replace("\r", " ").strip()
-    return text[:180]
+    return str(value).replace("\n", " ").replace("\r", " ").strip()[:180]
 
 
 def inspect_book(path: Path):
@@ -35,15 +33,20 @@ def inspect_book(path: Path):
         rows = []
         max_col = min(ws.max_column or 0, 80)
         max_row = min(ws.max_row or 0, 28)
-        for r in range(1, max_row + 1):
-            vals = [clean(ws.cell(r, c).value) for c in range(1, max_col + 1)]
-            if any(v not in (None, "") for v in vals):
-                rows.append({"row": r, "values": vals})
+        for row_number, raw_values in enumerate(
+            ws.iter_rows(min_row=1, max_row=max_row, min_col=1, max_col=max_col, values_only=True),
+            start=1,
+        ):
+            values = [clean(value) for value in raw_values]
+            if any(value not in (None, "") for value in values):
+                rows.append({"row": row_number, "values": values})
         result["sheets"][ws.title] = {
             "max_row": ws.max_row,
             "max_column": ws.max_column,
             "sample_rows": rows,
         }
+        ws.reset_dimensions()
+    wb.close()
     return result
 
 
@@ -69,7 +72,7 @@ def main():
             entry["error"] = repr(exc)
         report[key] = entry
     (out / "diagnostics.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({k: {kk: vv for kk, vv in v.items() if kk != "workbook"} for k, v in report.items()}, ensure_ascii=False, indent=2))
+    print(json.dumps({key: {k: v for k, v in entry.items() if k != "workbook"} for key, entry in report.items()}, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
