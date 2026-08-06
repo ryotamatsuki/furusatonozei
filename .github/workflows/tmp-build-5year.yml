@@ -1,0 +1,35 @@
+name: Temporary five-year data build
+
+on:
+  push:
+    branches:
+      - tmp-build-5year-20260806
+    paths:
+      - 'tmp_build/**'
+      - '.github/workflows/tmp-build-5year.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install --upgrade requests openpyxl
+      - name: Inspect official source workbooks
+        run: python tmp_build/inspect_sources.py
+      - name: Upload diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: five-year-source-diagnostics
+          path: tmp_build/output
+          if-no-files-found: error
+          retention-days: 1
