@@ -13,7 +13,7 @@ SOURCES = {
     "2021_tax": "https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/file/results20220729-03.xlsx",
     "2022_receipts": "https://www.soumu.go.jp/main_content/000894504.xlsx",
     "2022_tax": "https://www.soumu.go.jp/main_content/000897134.xlsx",
-    "2023_receipts": "https://www.soumu.go.jp/main_content/000960672.xlsx",
+    "2023_receipts": "https://www.soumu.go.jp/main_content/000960674.xlsx",
     "2023_tax": "https://www.soumu.go.jp/main_content/000960675.xlsx",
     "2024_receipts": "https://www.soumu.go.jp/main_content/001022818.xlsx",
     "2024_tax": "https://www.soumu.go.jp/main_content/001022820.xlsx",
