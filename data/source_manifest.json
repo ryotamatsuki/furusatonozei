@@ -1,0 +1,61 @@
+{
+  "period": {
+    "start": 2020,
+    "end": 2024,
+    "fiscal_years": 5
+  },
+  "formula": {
+    "name": "実質収支額（5年比較用）",
+    "expression": "寄附受入額－募集に要した費用－代理受入額－住民税控除額＋住民税控除額×75％",
+    "note": "年度間で共通に算定できる比較用の制度値。総務省公表の自治体別普通交付税増加額の実績ではない。"
+  },
+  "sources": {
+    "2020": {
+      "fiscal_year_label": "令和2年度",
+      "receipts_url": "https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/file/results20210730-01.xlsx",
+      "tax_url": "https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/file/results20210730-03.xlsx",
+      "receipts_sha256": "e0f8033d6e26e1b4fe3f9bc0e3ad7b84f9dfded355733da8ef48203ae4eb789c",
+      "tax_sha256": "dcb91d7036daa4ce3f98df373609a2d2d55b85ff64012e4d66e0440d79f5854d",
+      "municipality_count": 1741,
+      "receipts_file_note": "総務省公表原表"
+    },
+    "2021": {
+      "fiscal_year_label": "令和3年度",
+      "receipts_url": "https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/file/results20220729-01.xlsx",
+      "tax_url": "https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/file/results20220729-03.xlsx",
+      "receipts_sha256": "6980eebb2d47ce897aa43367375e6775de1524278b1b7688716d772c989f7d18",
+      "tax_sha256": "4f6a139e354099323a9d54d1bbcb520e744699efe690ba3be47dfd9bfc614f52",
+      "municipality_count": 1741,
+      "receipts_file_note": "総務省公表原表"
+    },
+    "2022": {
+      "fiscal_year_label": "令和4年度",
+      "receipts_url": "https://www.soumu.go.jp/main_content/000894504.xlsx",
+      "tax_url": "https://www.soumu.go.jp/main_content/000897134.xlsx",
+      "receipts_sha256": "b87211db239e79ffbb2c6119e443162acfdb75e31959a4cae23c303c39039f99",
+      "tax_sha256": "27a0b7de00eef054f95af5763cca56e49f0d8e8311e1c6215009f2c3b81d779e",
+      "municipality_count": 1741,
+      "receipts_file_note": "総務省公表原表"
+    },
+    "2023": {
+      "fiscal_year_label": "令和5年度",
+      "receipts_url": "https://www.soumu.go.jp/main_content/000960672.xlsx",
+      "tax_url": "https://www.soumu.go.jp/main_content/000960675.xlsx",
+      "receipts_sha256": "6e5c3562f6bf6146b493c84aafaa168c8cc62591832f9c1bc1dfc0951d1533c4",
+      "tax_sha256": "4542cc6d23ccbd4291b668282c4345503c42c8cd5abd858a6a30f8faaaebf418",
+      "municipality_count": 1741,
+      "receipts_file_note": "総務省公表原表（現行URL削除後、Wayback Machine 2024-08-28保存版から同一ファイルを回収）",
+      "archive_timestamp": "20240828022056",
+      "archive_url": "https://web.archive.org/web/20240828022056id_/https://www.soumu.go.jp/main_content/000960672.xlsx"
+    },
+    "2024": {
+      "fiscal_year_label": "令和6年度",
+      "receipts_url": "https://www.soumu.go.jp/main_content/001022818.xlsx",
+      "tax_url": "https://www.soumu.go.jp/main_content/001022820.xlsx",
+      "receipts_sha256": "4b851058fb73c5fcf0aa4d63caa5a73bc3a959810e592ed53ecc4fae598b1521",
+      "tax_sha256": "c704dae1d5deeea8f08d6880ad30e38787f463818388babbe48198d5be63bc3e",
+      "municipality_count": 1741,
+      "receipts_file_note": "総務省公表原表"
+    }
+  }
+}

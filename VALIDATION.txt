@@ -1,0 +1,14 @@
+VALIDATION OK
+HTML structure: OK
+JavaScript syntax (3 inline scripts): OK
+Fiscal years: 2020, 2021, 2022, 2023, 2024
+Municipalities per year: 1,741
+Embedded financial records: 8,705
+Latest-year values match attached original: yes
+Browser smoke test:
+- 1,741 municipality selector options
+- 6 summary cards
+- 2 SVG trend charts
+- 5 annual table rows
+- fiscal-year switch to FY2020
+- no page errors
