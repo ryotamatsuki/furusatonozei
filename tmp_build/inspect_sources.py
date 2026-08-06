@@ -6,6 +6,7 @@ from pathlib import Path
 import requests
 from openpyxl import load_workbook
 
+# Temporary build helper: downloads official source files only during the build.
 SOURCES = {
     "2020_receipts": "https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/file/results20210730-01.xlsx",
     "2020_tax": "https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/file/results20210730-03.xlsx",
