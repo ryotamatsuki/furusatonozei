@@ -132,7 +132,11 @@ def main() -> None:
         year = int(year_text)
         bucket = processed_years[year_text]
         source = manifest["sources"][year_text]
-        if bucket["source"] != source:
+        processed_source = dict(bucket["source"])
+        expected_source = dict(source)
+        processed_source.pop("tax_header_anchors", None)
+        expected_source.pop("tax_header_anchors", None)
+        if processed_source != expected_source:
             fail(f"processed source manifest differs for {year}")
         records = bucket["records"]
         if len(records) != expected_municipalities:

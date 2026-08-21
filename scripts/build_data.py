@@ -643,6 +643,10 @@ def build(args: argparse.Namespace) -> None:
         records, diagnostics = join_year(year, source, no_download=args.no_download)
         validate_manifest_corrections(year, diagnostics, manifest)
         source.pop("_header_validation", None)
+        # Header anchors describe the parser contract in source_manifest.json;
+        # keep them out of every 1,741-row normalized bucket to avoid copying
+        # manifest-only extraction metadata into the large data artifact.
+        source.pop("tax_header_anchors", None)
         years[str(year)] = {"source": source, "diagnostics": diagnostics, "records": records}
     normalized = {
         "schema_version": 2,

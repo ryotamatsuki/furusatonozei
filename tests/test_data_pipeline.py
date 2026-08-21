@@ -27,11 +27,12 @@ class DataPipelineTest(unittest.TestCase):
     def test_period_keys_are_explicit_for_every_record(self):
         for year, bucket in self.processed["years"].items():
             source = bucket["source"]
-            self.assertEqual(source["receipt_fiscal_year"], int(year))
-            self.assertEqual(source["tax_donation_calendar_year"], int(year))
-            self.assertEqual(source["tax_assessment_fiscal_year"], source["tax_donation_calendar_year"] + 1)
-            self.assertIn("municipal_tax_deduction", source["tax_header_anchors"])
-            self.assertIn("prefectural_tax_deduction", source["tax_header_anchors"])
+            manifest_source = self.manifest["sources"][year]
+            self.assertEqual(manifest_source["receipt_fiscal_year"], int(year))
+            self.assertEqual(manifest_source["tax_donation_calendar_year"], int(year))
+            self.assertEqual(manifest_source["tax_assessment_fiscal_year"], manifest_source["tax_donation_calendar_year"] + 1)
+            self.assertIn("municipal_tax_deduction", manifest_source["tax_header_anchors"])
+            self.assertIn("prefectural_tax_deduction", manifest_source["tax_header_anchors"])
             for record in bucket["records"]:
                 self.assertEqual(record["receipt_fiscal_year"], int(year))
                 self.assertEqual(record["tax_donation_calendar_year"], source["tax_donation_calendar_year"])
