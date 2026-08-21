@@ -9,6 +9,8 @@ period, code, source-row, or formula change.
 
 from __future__ import annotations
 
+import base64
+import gzip
 import json
 import math
 import re
@@ -17,6 +19,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "index.html"
+EMBEDDED_DATA = ROOT / "data" / "embedded_data.js"
+EMBEDDED_HISTORY = ROOT / "data" / "embedded_history.js"
 MANIFEST = ROOT / "data" / "source_manifest.json"
 PROCESSED = ROOT / "data" / "processed" / "furusato_data.json"
 TOLERANCE = 1e-5
@@ -28,6 +32,20 @@ def extract_json(text: str, variable: str):
     if not match:
         raise AssertionError(f"{variable} was not found")
     return json.loads(match.group(1))
+
+
+def extract_bundle(path: Path, variable: str):
+    if not path.exists():
+        fail(f"missing generated bundle: {path}")
+    text = path.read_text(encoding="utf-8")
+    match = re.search(rf"const {re.escape(variable)} = \"([^\"]+)\";", text)
+    if not match:
+        fail(f"{variable} was not found in {path}")
+    try:
+        raw = gzip.decompress(base64.b64decode(match.group(1)))
+        return json.loads(raw.decode("utf-8"))
+    except (ValueError, OSError, json.JSONDecodeError) as exc:
+        fail(f"invalid generated bundle {path}: {exc}")
 
 
 def close(a, b) -> bool:
@@ -60,10 +78,19 @@ def main() -> None:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     processed = json.loads(PROCESSED.read_text(encoding="utf-8"))
     index_text = INDEX.read_text(encoding="utf-8")
-    embedded_data = extract_json(index_text, "DATA")
-    embedded_meta = extract_json(index_text, "FIVE_YEAR_META")
-    embedded_history = extract_json(index_text, "FIVE_YEAR_HISTORY")
+    embedded_data = extract_bundle(EMBEDDED_DATA, "FURUSATO_DATA_GZIP_B64")
+    history_bundle = extract_bundle(EMBEDDED_HISTORY, "FURUSATO_HISTORY_GZIP_B64")
+    embedded_meta = history_bundle["meta"]
+    embedded_history = history_bundle["history"]
     embedded_fields = extract_json(index_text, "FIVE_YEAR_FIELDS")
+
+    for required_script in (
+        'src="vendor/pako_inflate.min.js"',
+        'src="data/embedded_data.js"',
+        'src="data/embedded_history.js"',
+    ):
+        if required_script not in index_text:
+            fail(f"missing generated data script tag: {required_script}")
 
     if manifest.get("schema_version") != 2:
         fail("source_manifest schema_version must be 2")

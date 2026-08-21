@@ -11,6 +11,8 @@ reproduce its own bug while still reporting zero mismatches.
 from __future__ import annotations
 
 import argparse
+import base64
+import gzip
 import hashlib
 import io
 import json
@@ -30,6 +32,8 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "data" / "source_manifest.json"
 PROCESSED_PATH = ROOT / "data" / "processed" / "furusato_data.json"
 INDEX_PATH = ROOT / "index.html"
+EMBEDDED_DATA_PATH = ROOT / "data" / "embedded_data.js"
+EMBEDDED_HISTORY_PATH = ROOT / "data" / "embedded_history.js"
 RAW_DIR = ROOT / "data" / "raw"
 TOLERANCE = 1e-5
 MAX_AMOUNT = 10**14
@@ -356,6 +360,14 @@ def extract_json(text: str, variable: str):
     return json.loads(match.group(1))
 
 
+def extract_bundle(path: Path, variable: str):
+    text = path.read_text(encoding="utf-8")
+    match = re.search(rf"const {re.escape(variable)} = \"([^\"]+)\";", text)
+    if not match:
+        raise AssertionError(f"{variable} was not found in {path}")
+    return json.loads(gzip.decompress(base64.b64decode(match.group(1))).decode("utf-8"))
+
+
 def equal(a, b) -> bool:
     if isinstance(a, (int, float)) and isinstance(b, (int, float)):
         return math.isclose(float(a), float(b), rel_tol=0, abs_tol=TOLERANCE)
@@ -386,11 +398,12 @@ def main() -> int:
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     normalized = json.loads(PROCESSED_PATH.read_text(encoding="utf-8"))
     index_text = INDEX_PATH.read_text(encoding="utf-8")
-    embedded_data_list = extract_json(index_text, "DATA")
+    embedded_data_list = extract_bundle(EMBEDDED_DATA_PATH, "FURUSATO_DATA_GZIP_B64")
     errors: list[dict] = []
     embedded_data = checked_map(embedded_data_list, "code5", year=int(manifest["period"]["end"]), errors=errors, label="embedded_data")
-    embedded_history = extract_json(index_text, "FIVE_YEAR_HISTORY")
-    embedded_meta = extract_json(index_text, "FIVE_YEAR_META")
+    history_bundle = extract_bundle(EMBEDDED_HISTORY_PATH, "FURUSATO_HISTORY_GZIP_B64")
+    embedded_history = history_bundle["history"]
+    embedded_meta = history_bundle["meta"]
     reconciled_records = 0
     reconciled_fields = 0
     correction_count = 0

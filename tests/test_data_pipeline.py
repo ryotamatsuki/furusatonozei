@@ -1,4 +1,6 @@
 import json
+import base64
+import gzip
 import math
 import re
 import unittest
@@ -14,6 +16,15 @@ class DataPipelineTest(unittest.TestCase):
         cls.manifest = json.loads((ROOT / "data/source_manifest.json").read_text(encoding="utf-8"))
         cls.processed = json.loads((ROOT / "data/processed/furusato_data.json").read_text(encoding="utf-8"))
         cls.index = (ROOT / "index.html").read_text(encoding="utf-8")
+        cls.data_bundle = (ROOT / "data/embedded_data.js").read_text(encoding="utf-8")
+        cls.history_bundle = (ROOT / "data/embedded_history.js").read_text(encoding="utf-8")
+
+    @staticmethod
+    def decode_bundle(text, variable):
+        match = re.search(rf'const {re.escape(variable)} = "([^"]+)";', text)
+        if match is None:
+            raise AssertionError(f"missing {variable}")
+        return json.loads(gzip.decompress(base64.b64decode(match.group(1))).decode("utf-8"))
 
     def test_period_and_counts(self):
         period = self.manifest["period"]
@@ -68,10 +79,13 @@ class DataPipelineTest(unittest.TestCase):
         self.assertIn("実際の普通交付税増加額", ui)
         self.assertIn("taxPeriodSidebar", ui)
         self.assertIn("src=\"vendor/chart.umd.min.js\"", ui)
+        self.assertIn("src=\"vendor/pako_inflate.min.js\"", ui)
+        self.assertIn("src=\"data/embedded_data.js\"", ui)
+        self.assertIn("src=\"data/embedded_history.js\"", ui)
         self.assertNotIn("cdn.jsdelivr.net/npm/chart.js", ui)
-        embedded = "\n".join(
-            re.findall(r"const (?:DATA|FIVE_YEAR_META|FIVE_YEAR_HISTORY) = (.*?);\n", ui, flags=re.S)
-        )
+        data = self.decode_bundle(self.data_bundle, "FURUSATO_DATA_GZIP_B64")
+        history = self.decode_bundle(self.history_bundle, "FURUSATO_HISTORY_GZIP_B64")
+        embedded = json.dumps({"data": data, "history": history}, ensure_ascii=False)
         self.assertIsNone(re.search(r"\b(?:NaN|Infinity|-Infinity)\b", embedded))
 
 
