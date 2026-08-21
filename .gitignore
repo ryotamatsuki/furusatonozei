@@ -1,0 +1,8 @@
+.DS_Store
+data/raw/*.xlsx
+data/raw/*.xls
+__pycache__/
+*.pyc
+node_modules/
+playwright-report/
+test-results/
