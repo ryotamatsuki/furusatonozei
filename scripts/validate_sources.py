@@ -11,6 +11,8 @@ reproduce its own bug while still reporting zero mismatches.
 from __future__ import annotations
 
 import argparse
+import base64
+import gzip
 import hashlib
 import io
 import json
@@ -30,6 +32,8 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "data" / "source_manifest.json"
 PROCESSED_PATH = ROOT / "data" / "processed" / "furusato_data.json"
 INDEX_PATH = ROOT / "index.html"
+EMBEDDED_DATA_PATH = ROOT / "data" / "embedded_data.js"
+EMBEDDED_HISTORY_PATH = ROOT / "data" / "embedded_history.js"
 RAW_DIR = ROOT / "data" / "raw"
 TOLERANCE = 1e-5
 MAX_AMOUNT = 10**14
@@ -117,6 +121,36 @@ def column_number(value: str) -> int:
     return result
 
 
+def check_tax_header_layout(sheet, source: dict) -> None:
+    """Independently verify tax group anchors and configured column order."""
+    anchors = source.get("tax_header_anchors", {})
+    columns = source["tax_columns"]
+    municipal = anchors.get("municipal_tax_deduction")
+    prefectural = anchors.get("prefectural_tax_deduction")
+    if not municipal or not prefectural:
+        fail("tax_header_anchors must define both tax deduction groups")
+    municipal_anchor = column_number(municipal["column"])
+    prefectural_anchor = column_number(prefectural["column"])
+    municipal_column = column_number(columns["municipal_tax_deduction"])
+    prefectural_column = column_number(columns["prefectural_tax_deduction"])
+    if not municipal_anchor < municipal_column < prefectural_anchor:
+        fail("municipal tax column is not between the municipal and prefectural header anchors")
+    if not prefectural_column > prefectural_anchor:
+        fail("prefectural tax column is not to the right of the prefectural header anchor")
+    start = int(source["tax_row_start"])
+    for field, anchor in (("municipal_tax_deduction", municipal), ("prefectural_tax_deduction", prefectural)):
+        anchor_column = anchor.get("column")
+        column = column_number(anchor_column)
+        values = []
+        for row_number in range(max(1, start - 8), start):
+            value = sheet.cell(row_number, column).value
+            if value is not None:
+                values.append(normalize_text(value) or "")
+        header_text = " ".join(values)
+        if not all(token in header_text for token in anchor.get("tokens", [])):
+            fail(f"tax header anchor mismatch for {field} ({anchor_column}): {values!r}")
+
+
 def read_source(source: dict, key: str, *, no_download: bool) -> bytes:
     path = RAW_DIR / source[f"{key}_file"]
     if path.exists():
@@ -163,6 +197,8 @@ def check_headers(sheet, source: dict, manifest: dict, kind: str) -> None:
         header_text = " ".join(values)
         if not any(token in header_text for token in tokens):
             fail(f"{kind} header mismatch for {field} ({column}): {values!r}")
+    if kind == "tax":
+        check_tax_header_layout(sheet, source)
 
 
 def parse_official_rows(source: dict, manifest: dict, kind: str, data: bytes) -> dict[str, dict]:
@@ -324,6 +360,14 @@ def extract_json(text: str, variable: str):
     return json.loads(match.group(1))
 
 
+def extract_bundle(path: Path, variable: str):
+    text = path.read_text(encoding="utf-8")
+    match = re.search(rf"const {re.escape(variable)} = \"([^\"]+)\";", text)
+    if not match:
+        raise AssertionError(f"{variable} was not found in {path}")
+    return json.loads(gzip.decompress(base64.b64decode(match.group(1))).decode("utf-8"))
+
+
 def equal(a, b) -> bool:
     if isinstance(a, (int, float)) and isinstance(b, (int, float)):
         return math.isclose(float(a), float(b), rel_tol=0, abs_tol=TOLERANCE)
@@ -354,11 +398,12 @@ def main() -> int:
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     normalized = json.loads(PROCESSED_PATH.read_text(encoding="utf-8"))
     index_text = INDEX_PATH.read_text(encoding="utf-8")
-    embedded_data_list = extract_json(index_text, "DATA")
+    embedded_data_list = extract_bundle(EMBEDDED_DATA_PATH, "FURUSATO_DATA_GZIP_B64")
     errors: list[dict] = []
     embedded_data = checked_map(embedded_data_list, "code5", year=int(manifest["period"]["end"]), errors=errors, label="embedded_data")
-    embedded_history = extract_json(index_text, "FIVE_YEAR_HISTORY")
-    embedded_meta = extract_json(index_text, "FIVE_YEAR_META")
+    history_bundle = extract_bundle(EMBEDDED_HISTORY_PATH, "FURUSATO_HISTORY_GZIP_B64")
+    embedded_history = history_bundle["history"]
+    embedded_meta = history_bundle["meta"]
     reconciled_records = 0
     reconciled_fields = 0
     correction_count = 0
@@ -367,6 +412,12 @@ def main() -> int:
     for year in range(int(manifest["period"]["start"]), int(manifest["period"]["end"]) + 1):
         year_text = str(year)
         source = manifest["sources"][year_text]
+        if int(source.get("receipt_fiscal_year", -1)) != year:
+            fail(f"source {year} receipt_fiscal_year does not match its key")
+        if int(source.get("tax_donation_calendar_year", -1)) != year:
+            fail(f"source {year} tax_donation_calendar_year does not match its receipt year")
+        if int(source.get("tax_assessment_fiscal_year", -1)) != int(source.get("tax_donation_calendar_year", -2)) + 1:
+            fail(f"source {year} tax_assessment_fiscal_year must be donation calendar year + 1")
         receipt_bytes = read_source(source, "receipts", no_download=args.no_download)
         tax_bytes = read_source(source, "tax", no_download=args.no_download)
         official_records, diagnostics = join_official(source, manifest, receipt_bytes, tax_bytes, year)

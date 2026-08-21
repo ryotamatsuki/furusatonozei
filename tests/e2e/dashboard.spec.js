@@ -151,12 +151,28 @@ test("renders municipality detail, both trend charts, rates, and analysis charts
   );
   await expect(page.locator("#scatterChart")).toBeVisible();
   await expect(page.locator("#groupChart")).toBeVisible();
+  await expect(page.locator('#featureY option[value="receivedPerCapita"]')).toContainText("2020年人口");
   await assertNoInvalidNumbers(page);
+  assertBrowserClean(diagnostics);
+});
+
+test("keeps missing original source codes blank in the audit CSV", async ({ page }) => {
+  const diagnostics = await openDashboard(page);
+  await page.locator("#fiscalYear").selectOption(String(years[0]));
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#downloadBaseAudit").click();
+  const download = await downloadPromise;
+  const downloadPath = await download.path();
+  expect(downloadPath).not.toBeNull();
+  const csv = fs.readFileSync(downloadPath, "utf8");
+  const firstDataLine = csv.replace(/^\ufeff/, "").split(/\r?\n/)[1];
+  expect(firstDataLine.endsWith(",")).toBeTruthy();
   assertBrowserClean(diagnostics);
 });
 
 test("spot-checks five representative municipalities in the history selector", async ({ page }) => {
   const diagnostics = await openDashboard(page);
+  await page.locator('.tab-btn[data-tab="history"]').click();
   const labels = [
     recordLabel(topReceipt),
     recordLabel(smallReceipt),
@@ -170,6 +186,16 @@ test("spot-checks five representative municipalities in the history selector", a
     await expect(page.locator("#historyTitle")).toHaveText(label.replace(" ", ""));
     await expect(page.locator("#historyTable tbody tr")).toHaveCount(years.length);
   }
+  await assertNoInvalidNumbers(page);
+  assertBrowserClean(diagnostics);
+});
+
+test("renders an explicit unavailable rate when the comparison base is zero", async ({ page }) => {
+  const diagnostics = await openDashboard(page);
+  await page.locator(".tab-btn[data-tab=\"history\"]").click();
+  await page.locator("#historyMunicipality").selectOption({ label: "兵庫県 洲本市" });
+  const previousRate = page.locator("#historySummary .summary-card").filter({ hasText: "寄附受入額 前年度比" }).locator(".v");
+  await expect(previousRate).toHaveText("算定不可");
   await assertNoInvalidNumbers(page);
   assertBrowserClean(diagnostics);
 });
@@ -207,8 +233,10 @@ test("loads the map and opens a municipality popup from a rendered boundary", as
 
   expect(hit).not.toBeNull();
   await page.mouse.click(hit.x, hit.y);
-  await expect(page.locator(".maplibregl-popup")).toBeVisible({ timeout: 10_000 });
-  await expect(page.locator(".maplibregl-popup-content")).toContainText("財政影響参考額");
-  await expect(page.locator(".maplibregl-popup-content")).toContainText("実質収支ではありません");
+  const clickedPopup = page.locator(".maplibregl-popup").last();
+  const clickedPopupContent = page.locator(".maplibregl-popup-content").last();
+  await expect(clickedPopup).toBeVisible({ timeout: 10_000 });
+  await expect(clickedPopupContent).toContainText("財政影響参考額");
+  await expect(clickedPopupContent).toContainText("実質収支ではありません");
   assertBrowserClean(diagnostics);
 });

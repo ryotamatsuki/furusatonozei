@@ -52,7 +52,9 @@ parser・SHA-256検証・コードマスタ結合
     ↓
 data/processed/furusato_data.json
     ↓  scripts/validate_sources.py / scripts/validate_repository.py
-index.html の内蔵JSON
+data/embedded_data.js・data/embedded_history.js（gzip+base64生成バンドル）
+    ↓
+index.html（ローカルスクリプトを読み込むオフラインUI）
 ```
 
 更新時は、まず `data/source_manifest.json` に新年度の公式URL、ファイル名、公表日、対応年度、シート、列、件数、SHA-256を追加し、次を実行します。
@@ -94,7 +96,9 @@ GitHub Actionsの `.github/workflows/validate.yml` は、pushとpull requestでP
 
 ## オフライン利用と地図
 
-金額・年度推移・グラフ・自治体属性は `index.html` に内蔵しているため、ファイルを直接開いても表示できます。地図だけはMapLibre、PMTiles、国土地理院タイル等の外部リソースを使用するため、外部通信がない環境では地図が利用できないことがあります。地図が利用できない場合も、金額分布・自治体の特徴・年度推移は利用できます。
+金額・年度推移・グラフ・自治体属性は同梱した生成スクリプト（`data/embedded_*.js`、`vendor/pako_inflate.min.js`）から復元するため、ファイルを直接開いても表示できます。地図だけはMapLibre、PMTiles、国土地理院タイル等の外部リソースを使用するため、外部通信がない環境では地図が利用できないことがあります。地図が利用できない場合も、金額分布・自治体の特徴・年度推移は利用できます。
+
+分析グラフの描画ライブラリは Chart.js 4.4.7（MIT、`vendor/chart.umd.min.js`）を同梱しています。したがって、オフライン時に必要な外部通信は地図リソースに限られます。
 
 Windowsでは [`open_dashboard.bat`](open_dashboard.bat) から起動できます。
 
@@ -103,8 +107,10 @@ Windowsでは [`open_dashboard.bat`](open_dashboard.bat) から起動できま�
 - `index.html`：データを内蔵した配布用ダッシュボード
 - `data/source_manifest.json`：年度対応、出典、列、SHA-256、制度定義
 - `data/processed/furusato_data.json`：parserが生成する正規化データ
+- `data/embedded_data.js` / `data/embedded_history.js`：正規化データから生成するgzip+base64内蔵バンドル
 - `scripts/download_sources.py`：公式XLSXの取得とSHA-256検証
-- `scripts/build_data.py`：XLSXから正規化JSONとindex.htmlを生成
+- `scripts/build_data.py`：XLSXから正規化JSON、内蔵バンドル、index.htmlを生成
+- `vendor/pako_inflate.min.js`：内蔵gzipバンドルのオフライン復元用ライブラリ
 - `scripts/validate_sources.py`：公式XLSXとの全件照合
 - `scripts/validate_repository.py`：内蔵JSONと生成データの構造・値検証
 - `requirements.txt`：XLSX parser依存関係の固定
