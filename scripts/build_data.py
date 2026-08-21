@@ -106,6 +106,42 @@ def excel_col_number(value: str) -> int:
     return result
 
 
+def validate_tax_header_layout(sheet, source: dict) -> None:
+    """Check that configured tax columns sit under the right group headers.
+
+    Both tax columns have a generic ``控除額`` cell, so checking only that token
+    would allow municipal and prefectural columns to be accidentally swapped.
+    The manifest records the merged group-header anchors as an additional,
+    year-specific structural check.
+    """
+    anchors = source.get("tax_header_anchors", {})
+    columns = source["tax_columns"]
+    municipal = anchors.get("municipal_tax_deduction")
+    prefectural = anchors.get("prefectural_tax_deduction")
+    if not municipal or not prefectural:
+        fail("tax_header_anchors must define both tax deduction groups")
+    municipal_anchor = excel_col_number(municipal["column"])
+    prefectural_anchor = excel_col_number(prefectural["column"])
+    municipal_column = excel_col_number(columns["municipal_tax_deduction"])
+    prefectural_column = excel_col_number(columns["prefectural_tax_deduction"])
+    if not municipal_anchor < municipal_column < prefectural_anchor:
+        fail("municipal tax column is not between the municipal and prefectural header anchors")
+    if not prefectural_column > prefectural_anchor:
+        fail("prefectural tax column is not to the right of the prefectural header anchor")
+    start = int(source["tax_row_start"])
+    for field, anchor in (("municipal_tax_deduction", municipal), ("prefectural_tax_deduction", prefectural)):
+        anchor_column = anchor.get("column")
+        column = excel_col_number(anchor_column)
+        header_values = []
+        for row_number in range(max(1, start - 8), start):
+            value = sheet.cell(row_number, column).value
+            if value is not None:
+                header_values.append(normalize_text(value) or "")
+        header_text = " ".join(header_values)
+        if not all(token in header_text for token in anchor.get("tokens", [])):
+            fail(f"tax header anchor mismatch for {field} ({anchor_column}): {header_values!r}")
+
+
 def download_or_read(source: dict, key: str, *, no_download: bool) -> bytes:
     url_key = f"{key}_url"
     file_key = f"{key}_file"
@@ -202,6 +238,8 @@ def parse_source_rows(source: dict, *, kind: str, data: bytes) -> dict[str, dict
                 f"{kind} header mismatch for {field} ({column}) in {source[sheet_key]}: "
                 f"expected one of {tokens!r}, got {header_values!r}"
             )
+    if kind == "tax":
+        validate_tax_header_layout(sheet, source)
     for source_row, row in enumerate(sheet.iter_rows(values_only=True), start=1):
         if source_row < start:
             continue
@@ -547,6 +585,12 @@ def validate_normalized(normalized: dict) -> None:
         source = years[year]["source"]
         if source.get("retrieved_at") is None:
             fail(f"{year} source retrieved_at is missing")
+        if int(source.get("receipt_fiscal_year", -1)) != int(year):
+            fail(f"{year} source receipt_fiscal_year does not match its key")
+        if int(source.get("tax_donation_calendar_year", -1)) != int(year):
+            fail(f"{year} source tax_donation_calendar_year does not match its receipt year")
+        if int(source.get("tax_assessment_fiscal_year", -1)) != int(source.get("tax_donation_calendar_year", -2)) + 1:
+            fail(f"{year} source tax_assessment_fiscal_year must be donation calendar year + 1")
         codes = [r["municipality_code"] for r in records]
         if len(set(codes)) != len(codes):
             fail(f"{year} normalized duplicate municipality code")

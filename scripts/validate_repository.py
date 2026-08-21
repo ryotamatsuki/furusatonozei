@@ -100,6 +100,16 @@ def main() -> None:
         source = manifest["sources"].get(year_text)
         if not source or not source.get("retrieved_at"):
             fail(f"source {year_text} retrieved_at is missing")
+        year = int(year_text)
+        if int(source.get("receipt_fiscal_year", -1)) != year:
+            fail(f"source {year} receipt_fiscal_year does not match its manifest key")
+        if int(source.get("tax_donation_calendar_year", -1)) != year:
+            fail(f"source {year} tax_donation_calendar_year does not match its receipt year")
+        if int(source.get("tax_assessment_fiscal_year", -1)) != int(source.get("tax_donation_calendar_year", -2)) + 1:
+            fail(f"source {year} tax_assessment_fiscal_year must be donation calendar year + 1")
+        anchors = source.get("tax_header_anchors", {})
+        if not anchors.get("municipal_tax_deduction") or not anchors.get("prefectural_tax_deduction"):
+            fail(f"source {year} tax_header_anchors are incomplete")
 
     processed_years = processed["years"]
     source_fields = [

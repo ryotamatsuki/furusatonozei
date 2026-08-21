@@ -96,6 +96,8 @@ GitHub Actionsの `.github/workflows/validate.yml` は、pushとpull requestでP
 
 金額・年度推移・グラフ・自治体属性は `index.html` に内蔵しているため、ファイルを直接開いても表示できます。地図だけはMapLibre、PMTiles、国土地理院タイル等の外部リソースを使用するため、外部通信がない環境では地図が利用できないことがあります。地図が利用できない場合も、金額分布・自治体の特徴・年度推移は利用できます。
 
+分析グラフの描画ライブラリは Chart.js 4.4.7（MIT、`vendor/chart.umd.min.js`）を同梱しています。したがって、オフライン時に必要な外部通信は地図リソースに限られます。
+
 Windowsでは [`open_dashboard.bat`](open_dashboard.bat) から起動できます。
 
 ## ファイル構成

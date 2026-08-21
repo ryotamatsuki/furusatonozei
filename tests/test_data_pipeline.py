@@ -27,6 +27,11 @@ class DataPipelineTest(unittest.TestCase):
     def test_period_keys_are_explicit_for_every_record(self):
         for year, bucket in self.processed["years"].items():
             source = bucket["source"]
+            self.assertEqual(source["receipt_fiscal_year"], int(year))
+            self.assertEqual(source["tax_donation_calendar_year"], int(year))
+            self.assertEqual(source["tax_assessment_fiscal_year"], source["tax_donation_calendar_year"] + 1)
+            self.assertIn("municipal_tax_deduction", source["tax_header_anchors"])
+            self.assertIn("prefectural_tax_deduction", source["tax_header_anchors"])
             for record in bucket["records"]:
                 self.assertEqual(record["receipt_fiscal_year"], int(year))
                 self.assertEqual(record["tax_donation_calendar_year"], source["tax_donation_calendar_year"])
@@ -61,6 +66,8 @@ class DataPipelineTest(unittest.TestCase):
         self.assertIn("実質収支ではありません", ui)
         self.assertIn("実際の普通交付税増加額", ui)
         self.assertIn("taxPeriodSidebar", ui)
+        self.assertIn("src=\"vendor/chart.umd.min.js\"", ui)
+        self.assertNotIn("cdn.jsdelivr.net/npm/chart.js", ui)
         embedded = "\n".join(
             re.findall(r"const (?:DATA|FIVE_YEAR_META|FIVE_YEAR_HISTORY) = (.*?);\n", ui, flags=re.S)
         )

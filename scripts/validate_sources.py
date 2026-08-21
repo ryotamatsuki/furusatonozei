@@ -117,6 +117,36 @@ def column_number(value: str) -> int:
     return result
 
 
+def check_tax_header_layout(sheet, source: dict) -> None:
+    """Independently verify tax group anchors and configured column order."""
+    anchors = source.get("tax_header_anchors", {})
+    columns = source["tax_columns"]
+    municipal = anchors.get("municipal_tax_deduction")
+    prefectural = anchors.get("prefectural_tax_deduction")
+    if not municipal or not prefectural:
+        fail("tax_header_anchors must define both tax deduction groups")
+    municipal_anchor = column_number(municipal["column"])
+    prefectural_anchor = column_number(prefectural["column"])
+    municipal_column = column_number(columns["municipal_tax_deduction"])
+    prefectural_column = column_number(columns["prefectural_tax_deduction"])
+    if not municipal_anchor < municipal_column < prefectural_anchor:
+        fail("municipal tax column is not between the municipal and prefectural header anchors")
+    if not prefectural_column > prefectural_anchor:
+        fail("prefectural tax column is not to the right of the prefectural header anchor")
+    start = int(source["tax_row_start"])
+    for field, anchor in (("municipal_tax_deduction", municipal), ("prefectural_tax_deduction", prefectural)):
+        anchor_column = anchor.get("column")
+        column = column_number(anchor_column)
+        values = []
+        for row_number in range(max(1, start - 8), start):
+            value = sheet.cell(row_number, column).value
+            if value is not None:
+                values.append(normalize_text(value) or "")
+        header_text = " ".join(values)
+        if not all(token in header_text for token in anchor.get("tokens", [])):
+            fail(f"tax header anchor mismatch for {field} ({anchor_column}): {values!r}")
+
+
 def read_source(source: dict, key: str, *, no_download: bool) -> bytes:
     path = RAW_DIR / source[f"{key}_file"]
     if path.exists():
@@ -163,6 +193,8 @@ def check_headers(sheet, source: dict, manifest: dict, kind: str) -> None:
         header_text = " ".join(values)
         if not any(token in header_text for token in tokens):
             fail(f"{kind} header mismatch for {field} ({column}): {values!r}")
+    if kind == "tax":
+        check_tax_header_layout(sheet, source)
 
 
 def parse_official_rows(source: dict, manifest: dict, kind: str, data: bytes) -> dict[str, dict]:
@@ -367,6 +399,12 @@ def main() -> int:
     for year in range(int(manifest["period"]["start"]), int(manifest["period"]["end"]) + 1):
         year_text = str(year)
         source = manifest["sources"][year_text]
+        if int(source.get("receipt_fiscal_year", -1)) != year:
+            fail(f"source {year} receipt_fiscal_year does not match its key")
+        if int(source.get("tax_donation_calendar_year", -1)) != year:
+            fail(f"source {year} tax_donation_calendar_year does not match its receipt year")
+        if int(source.get("tax_assessment_fiscal_year", -1)) != int(source.get("tax_donation_calendar_year", -2)) + 1:
+            fail(f"source {year} tax_assessment_fiscal_year must be donation calendar year + 1")
         receipt_bytes = read_source(source, "receipts", no_download=args.no_download)
         tax_bytes = read_source(source, "tax", no_download=args.no_download)
         official_records, diagnostics = join_official(source, manifest, receipt_bytes, tax_bytes, year)
