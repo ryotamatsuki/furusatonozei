@@ -157,6 +157,7 @@ test("renders municipality detail, both trend charts, rates, and analysis charts
 
 test("spot-checks five representative municipalities in the history selector", async ({ page }) => {
   const diagnostics = await openDashboard(page);
+  await page.locator('.tab-btn[data-tab="history"]').click();
   const labels = [
     recordLabel(topReceipt),
     recordLabel(smallReceipt),
@@ -207,8 +208,10 @@ test("loads the map and opens a municipality popup from a rendered boundary", as
 
   expect(hit).not.toBeNull();
   await page.mouse.click(hit.x, hit.y);
-  await expect(page.locator(".maplibregl-popup")).toBeVisible({ timeout: 10_000 });
-  await expect(page.locator(".maplibregl-popup-content")).toContainText("財政影響参考額");
-  await expect(page.locator(".maplibregl-popup-content")).toContainText("実質収支ではありません");
+  const clickedPopup = page.locator(".maplibregl-popup").last();
+  const clickedPopupContent = page.locator(".maplibregl-popup-content").last();
+  await expect(clickedPopup).toBeVisible({ timeout: 10_000 });
+  await expect(clickedPopupContent).toContainText("財政影響参考額");
+  await expect(clickedPopupContent).toContainText("実質収支ではありません");
   assertBrowserClean(diagnostics);
 });
