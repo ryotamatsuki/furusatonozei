@@ -1,61 +1,214 @@
 {
+  "schema_version": 2,
+  "dashboard": {
+    "name": "ふるさと納税 市区町村分析ダッシュボード",
+    "data_cutoff_date": "2026-08-21",
+    "offline_bundle": true,
+    "source_of_truth": "総務省『ふるさと納税に関する現況調査』の自治体別XLSX"
+  },
   "period": {
     "start": 2020,
-    "end": 2024,
-    "fiscal_years": 5
+    "end": 2025,
+    "fiscal_years": 6,
+    "municipality_count": 1741
   },
-  "formula": {
-    "name": "実質収支額（5年比較用）",
-    "expression": "寄附受入額－募集に要した費用－代理受入額－住民税控除額＋住民税控除額×75％",
-    "note": "年度間で共通に算定できる比較用の制度値。総務省公表の自治体別普通交付税増加額の実績ではない。"
+  "source_page_url": "https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/archive/",
+  "latest_official_page_url": "https://www.soumu.go.jp/menu_news/s-news/01zeimu04_02000162.html",
+  "latest_official_summary_url": "https://www.soumu.go.jp/main_content/001085011.pdf",
+  "indicator_definitions": {
+    "municipal_tax_deduction": "各年度の税資料における市町村民税の控除額（円）。総務省概要の住民税控除額（市町村民税＋道府県民税）とは区別する。",
+    "prefectural_tax_deduction": "各年度の税資料における道府県民税の控除額（円）。自治体別の市町村財政影響参考額の算式には含めないが、原表の内訳として保持する。",
+    "resident_tax_deduction_total": "市町村民税控除額＋道府県民税控除額。総務省概要の全国集計と比較するための内訳合計であり、市町村の財政影響参考額の算式には市町村民税控除額だけを用いる。",
+    "balance_before_tax_adjustment": "寄附受入額－募集に要した費用－代理受入額－市町村民税控除額。制度上の現金収支・自治体決算の実質収支ではない。",
+    "balance_with_75_percent_reference": "balance_before_tax_adjustment＋市町村民税控除額×0.75。基準財政収入額への75％反映を機械的に仮置きした制度参考値であり、実際の普通交付税増加額・国からの現金補填額ではない。",
+    "period_note": "寄附受入額は各年度（4月1日から翌年3月31日）の受入実績。市町村民税控除額は前年中（1月1日から12月31日）の寄附に基づく翌年度課税時点の額であり、両者は同一寄附コホートではない。",
+    "ordinary_grant_note": "普通交付税の実際の増加額は、基準財政需要額、他の税収、各種補正、調整等を含む算定結果であり、控除額×75％とは一致しない。不交付団体や特別区では自治体単位の実際の補填を示さない。"
+  },
+  "header_validation": {
+    "receipts": {
+      "received": ["金額", "寄附金額"],
+      "proxy": ["金額", "寄附金額"],
+      "expense": ["合計"]
+    },
+    "tax": {
+      "municipal_tax_deduction": ["控除額"],
+      "prefectural_tax_deduction": ["控除額"]
+    }
+  },
+  "normalization_notes": {
+    "2020": ["税原表の『北海道 亀田郡七飯町』はコードマスタの『北海道 七飯町』へ名称短縮join。原表行・原表名称は正規化JSONに保持。"],
+    "2023": ["受入原表の島根県美郷町コード054348は、コードマスタの正規コード324485へ正規化。原表コードは正規化JSONに保持。"],
+    "2024": ["税原表コード184420は愛知県美浜町234460、230006は愛知県豊根村235636、303623は福岡県広川町405442、204030は熊本県高森町434281へコードマスタで正規化。", "税原表の『福岡県 那珂川町』はコードマスタの『那珂川市』へ名称正規化。原表名称は正規化JSONに保持。"]
+  },
+  "join_corrections": {
+    "2020": [
+      {"kind": "tax_name_fallback", "receipt_code6": "013374", "receipt_name": "七飯町", "tax_name": "亀田郡七飯町", "reason": "税原表に自治体コード列がなく、コードマスタの郡名省略表記と一意join"}
+    ],
+    "2023": [
+      {"kind": "receipt_code_master", "prefecture": "島根県", "municipality": "美郷町", "raw_code6": "054348", "canonical_code6": "324485"}
+    ],
+    "2024": [
+      {"kind": "tax_code_master", "prefecture": "愛知県", "municipality": "美浜町", "raw_code6": "184420", "canonical_code6": "234460"},
+      {"kind": "tax_code_master", "prefecture": "愛知県", "municipality": "豊根村", "raw_code6": "230006", "canonical_code6": "235636"},
+      {"kind": "tax_name_master", "prefecture": "福岡県", "municipality_code": "40231", "municipality": "那珂川市", "raw_name": "那珂川町", "canonical_name": "那珂川市"},
+      {"kind": "tax_code_master", "prefecture": "福岡県", "municipality": "広川町", "raw_code6": "303623", "canonical_code6": "405442"},
+      {"kind": "tax_code_master", "prefecture": "熊本県", "municipality": "高森町", "raw_code6": "204030", "canonical_code6": "434281"}
+    ]
   },
   "sources": {
     "2020": {
-      "fiscal_year_label": "令和2年度",
+      "receipt_fiscal_year": 2020,
+      "receipt_fiscal_year_label": "令和2年度",
+      "tax_donation_calendar_year": 2020,
+      "tax_assessment_fiscal_year": 2021,
+      "tax_assessment_fiscal_year_label": "令和3年度課税",
+      "publication_date": "2021-07-30",
+      "retrieved_at": "2026-08-21",
       "receipts_url": "https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/file/results20210730-01.xlsx",
-      "tax_url": "https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/file/results20210730-03.xlsx",
+      "receipts_file": "results20210730-01.xlsx",
       "receipts_sha256": "e0f8033d6e26e1b4fe3f9bc0e3ad7b84f9dfded355733da8ef48203ae4eb789c",
+      "receipts_sheet": "集計",
+      "receipts_row_start": 14,
+      "receipts_columns": {"municipality_code": "A", "prefecture": "B", "municipality": "C", "received": "E", "proxy": "K", "expense": "R"},
+      "tax_url": "https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/file/results20210730-03.xlsx",
+      "tax_file": "results20210730-03.xlsx",
       "tax_sha256": "dcb91d7036daa4ce3f98df373609a2d2d55b85ff64012e4d66e0440d79f5854d",
+      "tax_sheet": "集計表",
+      "tax_row_start": 19,
+      "tax_columns": {"municipality_code": null, "prefecture": "A", "municipality": "B", "municipal_tax_deduction": "BD", "prefectural_tax_deduction": "BG"},
+      "tax_code_sheet": "全国地方公共団体コード",
+      "tax_code_columns": {"municipality_code": "A", "prefecture": "B", "municipality": "C"},
       "municipality_count": 1741,
-      "receipts_file_note": "総務省公表原表"
+      "source_note": "総務省公表原表。市町村民税控除額は市町村民税欄の合計。"
     },
     "2021": {
-      "fiscal_year_label": "令和3年度",
+      "receipt_fiscal_year": 2021,
+      "receipt_fiscal_year_label": "令和3年度",
+      "tax_donation_calendar_year": 2021,
+      "tax_assessment_fiscal_year": 2022,
+      "tax_assessment_fiscal_year_label": "令和4年度課税",
+      "publication_date": "2022-07-29",
+      "retrieved_at": "2026-08-21",
       "receipts_url": "https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/file/results20220729-01.xlsx",
-      "tax_url": "https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/file/results20220729-03.xlsx",
+      "receipts_file": "results20220729-01.xlsx",
       "receipts_sha256": "6980eebb2d47ce897aa43367375e6775de1524278b1b7688716d772c989f7d18",
+      "receipts_sheet": "集計",
+      "receipts_row_start": 13,
+      "receipts_columns": {"municipality_code": "A", "prefecture": "B", "municipality": "C", "received": "E", "proxy": "K", "expense": "R"},
+      "tax_url": "https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/file/results20220729-03.xlsx",
+      "tax_file": "results20220729-03.xlsx",
       "tax_sha256": "4f6a139e354099323a9d54d1bbcb520e744699efe690ba3be47dfd9bfc614f52",
+      "tax_sheet": "集計表",
+      "tax_row_start": 19,
+      "tax_columns": {"municipality_code": null, "prefecture": "A", "municipality": "B", "municipal_tax_deduction": "BD", "prefectural_tax_deduction": "BG"},
+      "tax_code_sheet": "全国地方公共団体コード",
+      "tax_code_columns": {"municipality_code": "A", "prefecture": "B", "municipality": "C"},
       "municipality_count": 1741,
-      "receipts_file_note": "総務省公表原表"
+      "source_note": "総務省公表原表。市町村民税控除額は市町村民税欄の合計。"
     },
     "2022": {
-      "fiscal_year_label": "令和4年度",
+      "receipt_fiscal_year": 2022,
+      "receipt_fiscal_year_label": "令和4年度",
+      "tax_donation_calendar_year": 2022,
+      "tax_assessment_fiscal_year": 2023,
+      "tax_assessment_fiscal_year_label": "令和5年度課税",
+      "publication_date": "2023-08-01",
+      "retrieved_at": "2026-08-21",
       "receipts_url": "https://www.soumu.go.jp/main_content/000894504.xlsx",
-      "tax_url": "https://www.soumu.go.jp/main_content/000897134.xlsx",
+      "receipts_file": "000894504.xlsx",
       "receipts_sha256": "b87211db239e79ffbb2c6119e443162acfdb75e31959a4cae23c303c39039f99",
+      "receipts_sheet": "Sheet1",
+      "receipts_row_start": 14,
+      "receipts_columns": {"municipality_code": "A", "prefecture": "B", "municipality": "C", "received": "E", "proxy": "K", "expense": "R"},
+      "tax_url": "https://www.soumu.go.jp/main_content/000897134.xlsx",
+      "tax_file": "000897134.xlsx",
       "tax_sha256": "27a0b7de00eef054f95af5763cca56e49f0d8e8311e1c6215009f2c3b81d779e",
+      "tax_sheet": "集計表",
+      "tax_row_start": 19,
+      "tax_columns": {"municipality_code": null, "prefecture": "A", "municipality": "B", "municipal_tax_deduction": "BD", "prefectural_tax_deduction": "BG"},
+      "tax_code_sheet": "全国地方公共団体コード",
+      "tax_code_columns": {"municipality_code": "A", "prefecture": "B", "municipality": "C"},
       "municipality_count": 1741,
-      "receipts_file_note": "総務省公表原表"
+      "source_note": "総務省公表原表。市町村民税控除額は市町村民税欄の合計。"
     },
     "2023": {
-      "fiscal_year_label": "令和5年度",
-      "receipts_url": "https://www.soumu.go.jp/main_content/000960672.xlsx",
-      "tax_url": "https://www.soumu.go.jp/main_content/000960675.xlsx",
+      "receipt_fiscal_year": 2023,
+      "receipt_fiscal_year_label": "令和5年度",
+      "tax_donation_calendar_year": 2023,
+      "tax_assessment_fiscal_year": 2024,
+      "tax_assessment_fiscal_year_label": "令和6年度課税",
+      "publication_date": "2024-08-02",
+      "retrieved_at": "2026-08-21",
+      "receipts_url": "https://web.archive.org/web/20240828022056id_/https://www.soumu.go.jp/main_content/000960672.xlsx",
+      "receipts_original_url": "https://www.soumu.go.jp/main_content/000960672.xlsx",
+      "receipts_file": "000960672.xlsx",
       "receipts_sha256": "6e5c3562f6bf6146b493c84aafaa168c8cc62591832f9c1bc1dfc0951d1533c4",
+      "receipts_sheet": "集計",
+      "receipts_row_start": 14,
+      "receipts_columns": {"municipality_code": "A", "prefecture": "B", "municipality": "C", "received": "E", "proxy": "K", "expense": "R"},
+      "receipts_code_sheet": "団体コード",
+      "receipts_code_columns": {"municipality_code": "A", "prefecture": "B", "municipality": "C"},
+      "tax_url": "https://www.soumu.go.jp/main_content/000960675.xlsx",
+      "tax_file": "000960675.xlsx",
       "tax_sha256": "4542cc6d23ccbd4291b668282c4345503c42c8cd5abd858a6a30f8faaaebf418",
+      "tax_sheet": "集計表",
+      "tax_row_start": 19,
+      "tax_columns": {"municipality_code": "A", "prefecture": "B", "municipality": "C", "municipal_tax_deduction": "BE", "prefectural_tax_deduction": "BH"},
+      "tax_code_sheet": "全国地方公共団体コード",
+      "tax_code_columns": {"municipality_code": "A", "prefecture": "B", "municipality": "C"},
       "municipality_count": 1741,
-      "receipts_file_note": "総務省公表原表（現行URL削除後、Wayback Machine 2024-08-28保存版から同一ファイルを回収）",
-      "archive_timestamp": "20240828022056",
-      "archive_url": "https://web.archive.org/web/20240828022056id_/https://www.soumu.go.jp/main_content/000960672.xlsx"
+      "source_note": "総務省公表原表。受入額XLSXは公式現行URLから削除されているため、公式ファイルのウェブ保存版を取得しSHA-256を固定。"
     },
     "2024": {
-      "fiscal_year_label": "令和6年度",
+      "receipt_fiscal_year": 2024,
+      "receipt_fiscal_year_label": "令和6年度",
+      "tax_donation_calendar_year": 2024,
+      "tax_assessment_fiscal_year": 2025,
+      "tax_assessment_fiscal_year_label": "令和7年度課税",
+      "publication_date": "2025-07-31",
+      "retrieved_at": "2026-08-21",
       "receipts_url": "https://www.soumu.go.jp/main_content/001022818.xlsx",
-      "tax_url": "https://www.soumu.go.jp/main_content/001022820.xlsx",
+      "receipts_file": "001022818.xlsx",
       "receipts_sha256": "4b851058fb73c5fcf0aa4d63caa5a73bc3a959810e592ed53ecc4fae598b1521",
+      "receipts_sheet": "Sheet1",
+      "receipts_row_start": 15,
+      "receipts_columns": {"municipality_code": "A", "prefecture": "B", "municipality": "C", "received": "E", "proxy": "K", "expense": "R"},
+      "tax_url": "https://www.soumu.go.jp/main_content/001022820.xlsx",
+      "tax_file": "001022820.xlsx",
       "tax_sha256": "c704dae1d5deeea8f08d6880ad30e38787f463818388babbe48198d5be63bc3e",
+      "tax_sheet": "【集計】団体確認用",
+      "tax_row_start": 19,
+      "tax_columns": {"municipality_code": "A", "prefecture": "B", "municipality": "C", "municipal_tax_deduction": "BE", "prefectural_tax_deduction": "BH"},
+      "tax_code_sheet": "全国地方公共団体コード",
+      "tax_code_columns": {"municipality_code": "A", "prefecture": "B", "municipality": "C"},
+      "allowed_code_name_mismatches": [{"municipality_code": "40231", "receipt_name": "那珂川市", "tax_name": "那珂川町", "reason": "税原表の旧名称。自治体コード一致を優先し、原表名称を保持。"}],
       "municipality_count": 1741,
-      "receipts_file_note": "総務省公表原表"
+      "source_note": "総務省公表原表。市町村民税控除額は市町村民税欄の合計。"
+    },
+    "2025": {
+      "receipt_fiscal_year": 2025,
+      "receipt_fiscal_year_label": "令和7年度",
+      "tax_donation_calendar_year": 2025,
+      "tax_assessment_fiscal_year": 2026,
+      "tax_assessment_fiscal_year_label": "令和8年度課税",
+      "publication_date": "2026-07-31",
+      "retrieved_at": "2026-08-21",
+      "receipts_url": "https://www.soumu.go.jp/main_content/001084989.xlsx",
+      "receipts_file": "001084989.xlsx",
+      "receipts_sha256": "e6299d05a172f00472971f1684f250cb38da4fd596408f03f333a0c1bc5452e2",
+      "receipts_sheet": "Sheet1",
+      "receipts_row_start": 14,
+      "receipts_columns": {"municipality_code": "A", "prefecture": "B", "municipality": "C", "received": "E", "proxy": "K", "expense": "R"},
+      "tax_url": "https://www.soumu.go.jp/main_content/001085012.xlsx",
+      "tax_file": "001085012.xlsx",
+      "tax_sha256": "157ec580017313a607c34bd46899b77c9136485865548ded2ee7a3b6bed90b5b",
+      "tax_sheet": "集計表",
+      "tax_row_start": 19,
+      "tax_columns": {"municipality_code": "A", "prefecture": "B", "municipality": "C", "municipal_tax_deduction": "BE", "prefectural_tax_deduction": "BH"},
+      "tax_code_sheet": "全国地方公共団体コード",
+      "tax_code_columns": {"municipality_code": "A", "prefecture": "B", "municipality": "C"},
+      "municipality_count": 1741,
+      "source_note": "総務省公式『令和8年度調査結果（概要）』及び自治体別XLSX。受入額は令和7年度決算見込、控除額は令和8年度課税における市町村民税控除額。"
     }
   }
 }

@@ -1,14 +1,34 @@
-VALIDATION OK
-HTML structure: OK
-JavaScript syntax (3 inline scripts): OK
-Fiscal years: 2020, 2021, 2022, 2023, 2024
-Municipalities per year: 1,741
-Embedded financial records: 8,705
-Latest-year values match attached original: yes
-Browser smoke test:
-- 1,741 municipality selector options
-- 6 summary cards
-- 2 SVG trend charts
-- 5 annual table rows
-- fiscal-year switch to FY2020
-- no page errors
+Validation record (2026-08-21 JST)
+
+Baseline
+- origin/main at start: 151d43be718ce9d4ef5487283ff6cc249b0659bc
+- Pre-change history: FY2020–FY2024, 8,705 embedded financial rows
+- Pre-change index.html size: 2,214,820 bytes
+
+Generated bundle and Python validation
+- `python scripts/build_data.py --no-download`: PASS
+- `python scripts/build_data.py --check`: PASS
+- `python scripts/validate_repository.py`: PASS
+- Fiscal years: 2020, 2021, 2022, 2023, 2024, 2025
+- Municipalities per year: 1,741
+- Embedded financial history rows: 10,446
+- Embedded source-field comparisons: 62,676
+- Derived/formula checks: PASS
+- Embedded reconciliation mismatches: 0
+
+Independent official-source reconciliation
+- Command: `python scripts/validate_sources.py --no-download --report data/processed/source_reconciliation_report.json`
+- Official source rows: 10,446 (6 years × 1,741 municipalities)
+- Official source-field comparisons: 261,150
+- Embedded historical rows: 10,446
+- Join corrections audited: 7
+- Mismatches: 0
+- Mismatch report: `data/processed/source_reconciliation_report.json` (empty array)
+
+Other automated checks
+- Python unit tests: 4 passed
+- Inline JavaScript syntax: 3 scripts passed `node --check`
+- `git diff --check`: PASS
+- Playwright suite: 6 tests are registered. Local browser execution requires a Chromium binary; the environment's browser download was blocked by the upstream certificate/502 response. CI installs Chromium with `npx playwright install --with-deps chromium`.
+
+The former manually recorded five-row browser smoke result is retained only in the baseline description above; it is not treated as evidence for the new six-year implementation.
