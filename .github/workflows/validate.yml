@@ -97,7 +97,7 @@ jobs:
 
   full-source-reconciliation:
     name: Official source full reconciliation
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.head_ref == 'audit/full-source-reconciliation-20260823') }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
