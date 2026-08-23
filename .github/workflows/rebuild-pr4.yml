@@ -1,4 +1,4 @@
-name: Rebuild PR4 augmented dashboard
+name: Finalize PR4 augmented dashboard
 
 on:
   pull_request:
@@ -10,10 +10,10 @@ permissions:
   contents: write
 
 jobs:
-  rebuild:
+  finalize:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 4 }}
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Check out implementation branch
         uses: actions/checkout@v4
@@ -29,14 +29,126 @@ jobs:
       - name: Install parser dependency
         run: python -m pip install --disable-pip-version-check -r requirements.txt
 
-      - name: Rebuild from official sources
+      - name: Update legacy validators for augmented history schema
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p=Path('scripts/validate_sources.py')
+          text=p.read_text(encoding='utf-8')
+          old='''            for field, position in {"received": 1, "expense": 2, "proxy": 3, "municipal_tax_deduction": 4, "prefectural_tax_deduction": 5, "resident_tax_deduction_total": 6, "balance_with_75pct_reference": 7, "receipt_source_row": 8, "tax_source_row": 9, "receipt_raw_code6": 10, "tax_raw_code6": 11}.items():'''
+          new='''            for field, position in {"received": 1, "expense": 2, "proxy": 3, "municipal_tax_deduction": 4, "prefectural_tax_deduction": 5, "resident_tax_deduction_total": 6, "balance_before_tax_adjustment": 7, "receipt_source_row": 8, "tax_source_row": 9, "receipt_raw_code6": 10, "tax_raw_code6": 11, "balance_with_75pct_reference": 19}.items():'''
+          if old in text:
+              text=text.replace(old,new,1)
+          elif new not in text:
+              raise SystemExit('validate_sources history schema is unexpected')
+          p.write_text(text,encoding='utf-8')
+
+          p=Path('scripts/validate_repository.py')
+          text=p.read_text(encoding='utf-8')
+          old_fields='''    if embedded_fields != [
+        "received",
+        "expense",
+        "proxy",
+        "taxDeduction",
+        "prefecturalTaxDeduction",
+        "residentTaxDeductionTotal",
+        "referenceBalance",
+        "receiptSourceRow",
+        "taxSourceRow",
+        "receiptRawSourceCode6",
+        "taxRawSourceCode6",
+    ]:'''
+          new_fields='''    if embedded_fields != [
+        "received",
+        "expense",
+        "proxy",
+        "taxDeduction",
+        "prefecturalTaxDeduction",
+        "residentTaxDeductionTotal",
+        "referenceBalance",
+        "receiptSourceRow",
+        "taxSourceRow",
+        "receiptRawSourceCode6",
+        "taxRawSourceCode6",
+        "ordinaryGrantFiscalYear",
+        "ordinaryGrantAmount",
+        "ordinaryGrantStatus",
+        "ordinaryGrantSourceStage",
+        "ordinaryGrantSourceStageLabel",
+        "ordinaryGrantSourceRow",
+        "ordinaryGrantSourceUrl",
+        "ordinaryGrantSourceSha256",
+        "ordinaryGrantEstimate",
+        "balanceWithOrdinaryGrantEstimate",
+    ]:'''
+          if old_fields in text:
+              text=text.replace(old_fields,new_fields,1)
+          elif new_fields not in text:
+              raise SystemExit('validate_repository FIVE_YEAR_FIELDS schema is unexpected')
+          old_positions='''    history_positions = {
+        "received": 1,
+        "expense": 2,
+        "proxy": 3,
+        "municipal_tax_deduction": 4,
+        "prefectural_tax_deduction": 5,
+        "resident_tax_deduction_total": 6,
+        "balance_with_75pct_reference": 7,
+        "receipt_source_row": 8,
+        "tax_source_row": 9,
+        "receipt_raw_code6": 10,
+        "tax_raw_code6": 11,
+    }'''
+          new_positions='''    history_positions = {
+        "received": 1,
+        "expense": 2,
+        "proxy": 3,
+        "municipal_tax_deduction": 4,
+        "prefectural_tax_deduction": 5,
+        "resident_tax_deduction_total": 6,
+        "balance_before_tax_adjustment": 7,
+        "receipt_source_row": 8,
+        "tax_source_row": 9,
+        "receipt_raw_code6": 10,
+        "tax_raw_code6": 11,
+        "balance_with_75pct_reference": 19,
+    }'''
+          if old_positions in text:
+              text=text.replace(old_positions,new_positions,1)
+          elif new_positions not in text:
+              raise SystemExit('validate_repository history schema is unexpected')
+          p.write_text(text,encoding='utf-8')
+          PY
+
+      - name: Rebuild from all pinned official sources
         run: python scripts/build_dashboard.py
 
-      - name: Run Python unit tests
-        run: python -m unittest discover -s tests -p 'test_*.py'
+      - name: Reconcile every furusato official source row
+        run: |
+          python scripts/download_sources.py
+          python scripts/validate_sources.py --no-download --report /tmp/furusato-source-reconciliation.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('data/processed/furusato_data.json').read_text(encoding='utf-8'))
+          report=json.loads(Path('/tmp/furusato-source-reconciliation.json').read_text(encoding='utf-8'))
+          rows=sum(len(data['years'][str(y)]['records']) for y in range(2020,2025))
+          if rows != 8705 or report:
+              raise SystemExit(f'requested reconciliation failed: rows={rows} mismatches={len(report)}')
+          print('REQUESTED 2020-2024 FURUSATO RECONCILIATION OK')
+          print('rows:', rows)
+          print('field comparisons (25 per record):', rows*25)
+          print('mismatches: 0')
+          PY
 
       - name: Independently reconcile ordinary grant workbooks
         run: python scripts/validate_ordinary_grant.py
+
+      - name: Validate generated repository structure
+        run: python scripts/validate_repository.py
+
+      - name: Run Python unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py'
 
       - name: Check inline JavaScript syntax
         run: |
@@ -49,14 +161,18 @@ jobs:
           NODE
           for script in /tmp/furusato-inline-*.js; do node --check "$script"; done
 
-      - name: Commit generated artifacts
+      - name: Remove implementation-only diagnostics and commit final branch
         run: |
+          git rm -f .ci-trigger-pr4 || true
+          git rm -f .github/workflows/inspect-pr4-ui.yml || true
+          git rm -f .github/workflows/final-pr4-audit.yml || true
+          git rm -f .github/workflows/fix-pr4-validators.yml || true
+          git rm -f scripts/discover_grant_sources.py || true
+          git rm -f scripts/inspect_grant_workbooks.py || true
+          git rm -f .github/workflows/rebuild-pr4.yml
+          git diff --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html data/processed/furusato_data.json data/processed/ordinary_grant_reconciliation_report.json
-          if git diff --cached --quiet; then
-            echo "Generated artifacts already current"
-          else
-            git commit -m "build: regenerate dashboard with ordinary grant model"
-            git push origin HEAD:improve/ordinary-grant-estimate-20260823
-          fi
+          git add scripts/validate_sources.py scripts/validate_repository.py index.html data/processed/furusato_data.json data/processed/ordinary_grant_reconciliation_report.json
+          git commit -m "Finalize ordinary grant model and full-source validation"
+          git push origin HEAD:improve/ordinary-grant-estimate-20260823
