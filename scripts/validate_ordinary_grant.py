@@ -26,6 +26,7 @@ RAW_DIR = ROOT / "data" / "raw"
 REPORT = ROOT / "data" / "processed" / "ordinary_grant_reconciliation_report.json"
 SPECIAL_WARD_CODES = {f"131{i:02d}" for i in range(1, 24)}
 FIELDS_PER_RECORD = 10
+AUDIT_NAME_VARIANTS = str.maketrans({"ヶ": "ケ", "ヵ": "カ", "鰺": "鯵", "檮": "梼", "﨑": "崎", "髙": "高"})
 
 
 def normalize(value) -> str | None:
@@ -34,6 +35,11 @@ def normalize(value) -> str | None:
     text = unicodedata.normalize("NFKC", str(value)).replace("\u3000", " ")
     text = re.sub(r"\s+", " ", text).strip()
     return text or None
+
+
+def audit_join_name(value) -> str | None:
+    text = normalize(value)
+    return text.translate(AUDIT_NAME_VARIANTS) if text else None
 
 
 def col_number(label: str) -> int:
@@ -60,7 +66,10 @@ def source_bytes(source: dict) -> bytes:
 
 
 def independent_source_rows(source: dict, records: list[dict]) -> dict[str, dict]:
-    canonical = {(r["prefecture"], r["municipality"]): r["municipality_code"] for r in records}
+    canonical = {
+        (normalize(r["prefecture"]), audit_join_name(r["municipality"])): r["municipality_code"]
+        for r in records
+    }
     if len(canonical) != len(records):
         raise RuntimeError("canonical municipality names are not unique")
     workbook = load_workbook(io.BytesIO(source_bytes(source)), read_only=True, data_only=True)
@@ -79,7 +88,7 @@ def independent_source_rows(source: dict, records: list[dict]) -> dict[str, dict
         maybe_pref = normalize(values[p])
         if maybe_pref:
             current_pref = maybe_pref
-        name = normalize(values[n])
+        name = audit_join_name(values[n])
         if not current_pref or not name:
             continue
         code = canonical.get((current_pref, name))
