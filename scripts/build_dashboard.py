@@ -102,6 +102,22 @@ def patch_select(text: str, select_id: str, default: str) -> str:
     return text[: match.start()] + match.group(1) + body + match.group(3) + text[match.end() :]
 
 
+def patch_interaction_contracts(text: str) -> str:
+    """Apply idempotent fixes for interactive UI event contracts."""
+    old = '''        const idx=elements[0].index;
+        selectedDistBin=selectedDistBin===idx?null:idx;
+        renderDistribution();
+        renderDistTable();'''
+    new = '''        const idx=elements[0].index;
+        selectedDistBin=selectedDistBin===idx?null:idx;
+        setTimeout(()=>{renderDistribution();renderDistTable();},0);'''
+    if old in text:
+        return replace_once(text, old, new, "deferred distribution chart redraw")
+    if new in text:
+        return text
+    fail("UI patch deferred distribution chart redraw: expected old or fixed handler")
+
+
 def upgrade_index_ui(text: str) -> str:
     if MODEL_MARKER in text:
         return text
@@ -411,6 +427,7 @@ def build(args: argparse.Namespace) -> None:
     data, meta, history = build_augmented_embedded(normalized, grant_manifest)
     index = base.INDEX_PATH.read_text(encoding="utf-8")
     index = upgrade_index_ui(index)
+    index = patch_interaction_contracts(index)
     index = base.replace_const(index, "DATA", data)
     index = base.replace_const(index, "FIVE_YEAR_META", meta)
     index = base.replace_const(index, "FIVE_YEAR_HISTORY", history)
