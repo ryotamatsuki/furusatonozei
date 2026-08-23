@@ -51,6 +51,13 @@ def replace_regex_once(text: str, pattern: str, replacement: str, label: str) ->
     return updated
 
 
+def replace_exact_count(text: str, old: str, new: str, label: str, expected_count: int) -> str:
+    count = text.count(old)
+    if count != expected_count:
+        fail(f"UI patch {label}: expected exactly {expected_count} matches, got {count}")
+    return text.replace(old, new, expected_count)
+
+
 def patch_select(text: str, select_id: str, default: str) -> str:
     pattern = rf'(<select\s+id="{re.escape(select_id)}"[^>]*>)(.*?)(</select>)'
     match = re.search(pattern, text, flags=re.S)
@@ -120,11 +127,12 @@ const SIGNED_METRICS = new Set(["afterGrant","afterGrantStatutory","beforeGrant"
         "metric labels",
     )
     text = replace_once(text, 'let currentMetric = "afterGrantStatutory";', 'let currentMetric = "beforeGrant";', "default map metric")
-    text = replace_once(
+    text = replace_exact_count(
         text,
         'if(key==="afterGrantPerCapita")return Number.isFinite(d.afterGrant)&&Number.isFinite(d.population)&&d.population>0?d.afterGrant/d.population:null;',
         'if(key==="afterGrantPerCapita")return Number.isFinite(d.beforeGrant)&&Number.isFinite(d.population)&&d.population>0?d.beforeGrant/d.population:null;',
         "per-capita fiscal impact",
+        2,
     )
 
     old_history_index = '''const HISTORY_INDEX = new Map(Object.entries(FIVE_YEAR_HISTORY).map(([year,rows])=>[
