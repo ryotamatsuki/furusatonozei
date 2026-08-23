@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "source_page_url": "https://www.soumu.go.jp/main_sosiki/c-zaisei/kouhu.html",
+  "definition": {
+    "amount": "総務省の市町村別普通交付税交付決定額。単位千円の原表を円へ換算。",
+    "estimate": "min(市町村民税控除額×75%, 普通交付税交付決定額)。実際のふるさと納税による交付税増加額を示すものではなく、普通交付税受取総額を超えない保守的な簡便推計。",
+    "special_wards": "東京23特別区は地方交付税上、東京都と一体で算定されるため自治体単位推計の対象外。",
+    "year_alignment": "ふるさと納税の税資料における課税年度 tax_assessment_fiscal_year と、普通交付税の算定年度を一致させる。"
+  },
+  "expected_ordinary_municipality_count": 1718,
+  "expected_special_ward_count": 23,
+  "sources": {
+    "2021": {
+      "fiscal_year": 2021,
+      "fiscal_year_label": "令和3年度",
+      "stage": "initial",
+      "stage_label": "当初決定額",
+      "url": "https://www.soumu.go.jp/main_content/000761570.xlsx",
+      "file": "ordinary_grant_2021_initial.xlsx",
+      "sha256": "2bc8d879120221da069af7dd59cca8e0e2810e3f30bda2d57147fdce64c834ac",
+      "sheet": "R３",
+      "row_start": 7,
+      "columns": {"prefecture": "B", "municipality": "C", "amount_thousand_yen": "D"},
+      "unit_multiplier": 1000,
+      "note": "令和3年度の市町村別再算定表はPDF公表のため、機械検証可能性を優先して当初決定Excelを採用。"
+    },
+    "2022": {
+      "fiscal_year": 2022,
+      "fiscal_year_label": "令和4年度",
+      "stage": "recalculated",
+      "stage_label": "変更決定額",
+      "url": "https://www.soumu.go.jp/main_content/000850258.xlsx",
+      "file": "ordinary_grant_2022_recalculated.xlsx",
+      "sha256": "3ebddc09ecc496c842e2792dee6c1f0eb4d5bdc62aa70a7744ce0d16dcee5d15",
+      "sheet": "R４",
+      "row_start": 8,
+      "columns": {"prefecture": "B", "municipality": "C", "amount_thousand_yen": "D"},
+      "unit_multiplier": 1000
+    },
+    "2023": {
+      "fiscal_year": 2023,
+      "fiscal_year_label": "令和5年度",
+      "stage": "recalculated",
+      "stage_label": "変更決定額",
+      "url": "https://www.soumu.go.jp/main_content/000916157.xlsx",
+      "file": "ordinary_grant_2023_recalculated.xlsx",
+      "sha256": "dd0c4d104584cf1d48d471e6ab6b9cb71dfda48575c9655838203cbc03049ed1",
+      "sheet": "R５",
+      "row_start": 8,
+      "columns": {"prefecture": "B", "municipality": "C", "amount_thousand_yen": "D"},
+      "unit_multiplier": 1000
+    },
+    "2024": {
+      "fiscal_year": 2024,
+      "fiscal_year_label": "令和6年度",
+      "stage": "recalculated",
+      "stage_label": "変更決定額",
+      "url": "https://www.soumu.go.jp/main_content/000983380.xlsx",
+      "file": "ordinary_grant_2024_recalculated.xlsx",
+      "sha256": "16106ef19d8d06a0fb752ee7a1a965c7b429c84db0051cb5870aaea19b689387",
+      "sheet": "R6",
+      "row_start": 8,
+      "columns": {"prefecture": "B", "municipality": "C", "amount_thousand_yen": "D"},
+      "unit_multiplier": 1000
+    },
+    "2025": {
+      "fiscal_year": 2025,
+      "fiscal_year_label": "令和7年度",
+      "stage": "recalculated",
+      "stage_label": "変更決定額",
+      "url": "https://www.soumu.go.jp/main_content/001047530.xlsx",
+      "file": "ordinary_grant_2025_recalculated.xlsx",
+      "sha256": "f8b69d2d78784627de656444452f0a004ed7b41cb3bf818e941af02c4417cba1",
+      "sheet": "R７",
+      "row_start": 8,
+      "columns": {"prefecture": "B", "municipality": "C", "amount_thousand_yen": "D"},
+      "unit_multiplier": 1000
+    },
+    "2026": {
+      "fiscal_year": 2026,
+      "fiscal_year_label": "令和8年度",
+      "stage": "initial",
+      "stage_label": "当初決定額",
+      "url": "https://www.soumu.go.jp/main_content/001083404.xlsx",
+      "file": "ordinary_grant_2026_initial.xlsx",
+      "sha256": "b2e6fc16cf5553c1e930c7af7955961d8b97be64af592b6b750063044b00f08c",
+      "sheet": "R８",
+      "row_start": 7,
+      "columns": {"prefecture": "B", "municipality": "C", "amount_thousand_yen": "D"},
+      "unit_multiplier": 1000,
+      "note": "現時点の最新公表は当初決定額。再算定公表後は差替え監査対象。"
+    }
+  }
+}
