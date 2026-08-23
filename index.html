@@ -1263,8 +1263,7 @@ function renderDistribution(){
         if(!elements.length)return;
         const idx=elements[0].index;
         selectedDistBin=selectedDistBin===idx?null:idx;
-        renderDistribution();
-        renderDistTable();
+        setTimeout(()=>{renderDistribution();renderDistTable();},0);
       }
     }
   });
