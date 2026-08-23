@@ -1,6 +1,11 @@
 name: Inspect PR4 UI snippets
 
 on:
+  push:
+    branches:
+      - improve/ordinary-grant-estimate-20260823
+    paths:
+      - .github/workflows/inspect-pr4-ui.yml
   workflow_dispatch:
 
 permissions:
