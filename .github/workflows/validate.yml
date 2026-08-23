@@ -29,22 +29,6 @@ jobs:
       - name: Install parser dependency
         run: python -m pip install --disable-pip-version-check -r requirements.txt
 
-      - name: Inspect ordinary grant sources on implementation branch
-        if: ${{ github.ref_name == 'improve/ordinary-grant-estimate-20260823' || github.head_ref == 'improve/ordinary-grant-estimate-20260823' }}
-        run: |
-          python scripts/discover_grant_sources.py
-          python scripts/inspect_grant_workbooks.py
-
-      - name: Upload ordinary grant discovery artifacts
-        if: ${{ always() && (github.ref_name == 'improve/ordinary-grant-estimate-20260823' || github.head_ref == 'improve/ordinary-grant-estimate-20260823') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ordinary-grant-source-discovery-${{ github.run_id }}
-          path: |
-            /tmp/grant-source-candidates.json
-            /tmp/grant-workbook-inspection.json
-          if-no-files-found: error
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -112,8 +96,7 @@ jobs:
           if-no-files-found: ignore
 
   full-source-reconciliation:
-    name: Official source full reconciliation
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    name: Furusato official source full reconciliation
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -131,9 +114,8 @@ jobs:
       - name: Download and verify official workbooks
         run: python scripts/download_sources.py
 
-      - name: Reconcile every official source row
-        run: |
-          python scripts/validate_sources.py --no-download --report /tmp/source-reconciliation-report.json
+      - name: Reconcile every official furusato source row
+        run: python scripts/validate_sources.py --no-download --report /tmp/source-reconciliation-report.json
 
       - name: Upload reconciliation report
         if: always()
@@ -142,3 +124,52 @@ jobs:
           name: source-reconciliation-${{ github.run_id }}
           path: /tmp/source-reconciliation-report.json
           if-no-files-found: ignore
+
+  ordinary-grant-reconciliation:
+    name: Ordinary grant official source full reconciliation
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install parser dependency
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+
+      - name: Independently reconcile every ordinary-grant row and derived estimate
+        run: python scripts/validate_ordinary_grant.py
+
+      - name: Upload ordinary-grant reconciliation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ordinary-grant-reconciliation-${{ github.run_id }}
+          path: data/processed/ordinary_grant_reconciliation_report.json
+          if-no-files-found: ignore
+
+  generated-artifact-reproducibility:
+    name: Rebuild generated data and UI reproducibly
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install parser dependency
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+
+      - name: Rebuild from all pinned official sources
+        run: python scripts/build_dashboard.py
+
+      - name: Ensure committed generated artifacts are current
+        run: git diff --exit-code -- index.html data/processed/furusato_data.json
