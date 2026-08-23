@@ -6,6 +6,9 @@ const root = path.resolve(__dirname, "../..");
 const manifest = JSON.parse(
   fs.readFileSync(path.join(root, "data/source_manifest.json"), "utf8"),
 );
+const grantManifest = JSON.parse(
+  fs.readFileSync(path.join(root, "data/ordinary_grant_manifest.json"), "utf8"),
+);
 const processed = JSON.parse(
   fs.readFileSync(path.join(root, "data/processed/furusato_data.json"), "utf8"),
 );
@@ -100,6 +103,43 @@ test("loads the latest year and exposes the complete six-year selector", async (
   assertBrowserClean(diagnostics);
 });
 
+test("uses the actual-data pre-grant fiscal impact as the default metric", async ({ page }) => {
+  const diagnostics = await openDashboard(page);
+
+  await expect(page.locator("#metric")).toHaveValue("beforeGrant");
+  await expect(page.locator("#distMetric")).toHaveValue("beforeGrant");
+  await expect(page.locator("#featureY")).toHaveValue("beforeGrant");
+  await expect(page.locator('#metric option[value="beforeGrant"]')).toContainText("実績ベース");
+  await expect(page.locator('#metric option[value="ordinaryGrantEstimate"]')).toContainText("保守的簡便推計");
+  await expect(page.locator('#metric option[value="balanceWithOrdinaryGrantEstimate"]')).toContainText("普通交付税考慮推計後");
+  assertBrowserClean(diagnostics);
+});
+
+test("embeds ordinary-grant source values and formulas for every municipality", async ({ page }) => {
+  const diagnostics = await openDashboard(page);
+  const snapshot = await page.evaluate(() => {
+    let wards = 0;
+    let normal = 0;
+    let formulaErrors = 0;
+    let yearErrors = 0;
+    for (const row of DATA) {
+      if (row.ordinaryGrantStatus === "special_ward_na") {
+        wards += 1;
+        if (row.ordinaryGrantAmount !== null || row.ordinaryGrantEstimate !== null || row.balanceWithOrdinaryGrantEstimate !== null) formulaErrors += 1;
+      } else {
+        normal += 1;
+        const expected = Math.min(row.grant75, row.ordinaryGrantAmount);
+        if (Math.abs(row.ordinaryGrantEstimate - expected) > 0.01) formulaErrors += 1;
+        if (Math.abs(row.balanceWithOrdinaryGrantEstimate - (row.beforeGrant + expected)) > 0.01) formulaErrors += 1;
+      }
+      if (row.ordinaryGrantFiscalYear !== row.taxAssessmentFiscalYear) yearErrors += 1;
+    }
+    return { count: DATA.length, wards, normal, formulaErrors, yearErrors };
+  });
+  expect(snapshot).toEqual({ count: 1741, wards: 23, normal: 1718, formulaErrors: 0, yearErrors: 0 });
+  assertBrowserClean(diagnostics);
+});
+
 test("switches every fiscal year and keeps derived indicators finite", async ({ page }) => {
   const diagnostics = await openDashboard(page);
   const rankingByYear = [];
@@ -110,6 +150,16 @@ test("switches every fiscal year and keeps derived indicators finite", async ({ 
     await expect(page.locator("#historySelectedYear")).toContainText(yearLabel(year));
     await expect(page.locator("#historyTable tbody tr")).toHaveCount(years.length);
     rankingByYear.push(await page.locator("#rankHigh").innerText());
+    const grantYear = Number(manifest.sources[String(year)].tax_assessment_fiscal_year);
+    expect(grantManifest.sources[String(grantYear)]).toBeDefined();
+    const active = await page.evaluate(() => ({
+      grantFiscalYears: [...new Set(DATA.map((row) => row.ordinaryGrantFiscalYear))],
+      taxFiscalYears: [...new Set(DATA.map((row) => row.taxAssessmentFiscalYear))],
+      wardCount: DATA.filter((row) => row.ordinaryGrantStatus === "special_ward_na").length,
+    }));
+    expect(active.grantFiscalYears).toEqual([grantYear]);
+    expect(active.taxFiscalYears).toEqual([grantYear]);
+    expect(active.wardCount).toBe(23);
     await assertNoInvalidNumbers(page);
   }
 
@@ -129,6 +179,8 @@ test("renders municipality detail, both trend charts, rates, and analysis charts
   await municipality.selectOption({ label: "愛媛県 松山市" });
   await expect(page.locator("#historyTitle")).toHaveText("愛媛県松山市");
   await expect(page.locator("#historyTable tbody tr")).toHaveCount(years.length);
+  await expect(page.locator("#historyTable")).toContainText("普通交付税交付決定額");
+  await expect(page.locator("#historyTable")).toContainText("推計後財政影響額");
   await expect(page.locator("#historyReceivedChart svg")).toBeVisible();
   await expect(page.locator("#historyBalanceChart svg")).toBeVisible();
   await expect(page.locator("#historySummary .summary-card")).toHaveCount(6);
@@ -142,6 +194,7 @@ test("renders municipality detail, both trend charts, rates, and analysis charts
   );
   await expect(page.locator("#distChart")).toBeVisible();
   await expect(page.locator("#distSummary .summary-card")).not.toHaveCount(0);
+  await expect(page.locator("#distTable")).toContainText("普通交付税考慮額（推計）");
 
   await page.locator('.tab-btn[data-tab="features"]').click();
   await page.waitForFunction(
@@ -170,6 +223,8 @@ test("spot-checks five representative municipalities in the history selector", a
     await expect(page.locator("#historyTitle")).toHaveText(label.replace(" ", ""));
     await expect(page.locator("#historyTable tbody tr")).toHaveCount(years.length);
   }
+  await page.locator("#historyMunicipality").selectOption({ label: "東京都 世田谷区" });
+  await expect(page.locator("#historyTable")).toContainText("算定対象外");
   await assertNoInvalidNumbers(page);
   assertBrowserClean(diagnostics);
 });
@@ -208,7 +263,8 @@ test("loads the map and opens a municipality popup from a rendered boundary", as
   expect(hit).not.toBeNull();
   await page.mouse.click(hit.x, hit.y);
   await expect(page.locator(".maplibregl-popup")).toBeVisible({ timeout: 10_000 });
-  await expect(page.locator(".maplibregl-popup-content")).toContainText("財政影響参考額");
-  await expect(page.locator(".maplibregl-popup-content")).toContainText("実質収支ではありません");
+  await expect(page.locator(".maplibregl-popup-content")).toContainText("財政影響額（交付税考慮前）");
+  await expect(page.locator(".maplibregl-popup-content")).toContainText("普通交付税交付決定額");
+  await expect(page.locator(".maplibregl-popup-content")).toContainText("保守的簡便推計");
   assertBrowserClean(diagnostics);
 });
