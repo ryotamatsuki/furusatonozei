@@ -2,7 +2,7 @@
 """Parse and apply official municipality ordinary local allocation tax data.
 
 The official ordinary-grant amount is NOT treated as a causal reimbursement
-from furusato nozei.  It is used only as a hard upper bound for a conservative
+from furusato nozei. It is used only as a hard upper bound for a conservative
 simple estimate:
 
     min(municipal tax deduction * 75%, total ordinary grant decision amount)
@@ -28,6 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RAW_DIR = ROOT / "data" / "raw"
 MAX_AMOUNT = 10**15
 SPECIAL_WARD_CODES = {f"131{i:02d}" for i in range(1, 24)}
+NAME_VARIANTS = str.maketrans({"ヶ": "ケ", "ヵ": "カ", "鰺": "鯵", "檮": "梼", "﨑": "崎", "髙": "高"})
 
 
 def fail(message: str) -> "NoReturn":
@@ -40,6 +41,11 @@ def normalize_text(value) -> str | None:
     text = unicodedata.normalize("NFKC", str(value)).replace("\u3000", " ")
     text = re.sub(r"\s+", " ", text).strip()
     return text or None
+
+
+def municipality_join_name(value) -> str | None:
+    text = normalize_text(value)
+    return text.translate(NAME_VARIANTS) if text else None
 
 
 def excel_col_number(value: str) -> int:
@@ -127,24 +133,22 @@ def parse_source(source: dict, canonical_by_name: dict[tuple[str, str], str], *,
         raw_pref = normalize_text(row[pref_index])
         if raw_pref:
             current_pref = raw_pref
-        name = normalize_text(row[name_index])
+        raw_name = normalize_text(row[name_index])
+        name = municipality_join_name(raw_name)
         if not current_pref or not name:
             continue
         code5 = canonical_by_name.get((current_pref, name))
         if not code5:
-            # Aggregate/footer rows are deliberately ignored. Any real
-            # municipality omission is detected by the exact count/missing
-            # assertions below.
             continue
         if is_special_ward(code5):
-            fail(f"ordinary-grant source unexpectedly contains Tokyo special ward {code5} {name}")
+            fail(f"ordinary-grant source unexpectedly contains Tokyo special ward {code5} {raw_name}")
         if code5 in rows:
             duplicate_codes.append(code5)
             continue
         rows[code5] = {
             "source_row": source_row,
             "prefecture": current_pref,
-            "municipality": name,
+            "municipality": raw_name,
             "amount": parse_thousand_yen(row[amount_index], row=source_row, multiplier=multiplier),
         }
     if duplicate_codes:
@@ -158,7 +162,7 @@ def enrich_records(records: list[dict], source: dict, *, no_download: bool, expe
     ward_codes: set[str] = set()
     for record in records:
         code5 = record["municipality_code"]
-        key = (record["prefecture"], record["municipality"])
+        key = (normalize_text(record["prefecture"]), municipality_join_name(record["municipality"]))
         if key in canonical_by_name:
             fail(f"duplicate canonical municipality name for ordinary-grant join: {key}")
         canonical_by_name[key] = code5
