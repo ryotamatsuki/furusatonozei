@@ -13,52 +13,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  finalize-ui-fix:
-    name: Finalize PR4 generated UI interaction fix
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.number == 4 }}
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - name: Check out implementation branch
-        uses: actions/checkout@v4
-        with:
-          ref: improve/ordinary-grant-estimate-20260823
-          fetch-depth: 0
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install parser dependency
-        run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Regenerate fixed UI and remove temporary generation hooks
-        run: |
-          python scripts/build_dashboard.py
-          python - <<'PY'
-          from pathlib import Path
-          import re
-          path = Path('.github/workflows/validate.yml')
-          text = path.read_text(encoding='utf-8')
-          updated, count = re.subn(
-              r'\n  finalize-ui-fix:\n.*?\n  python-validation:',
-              '\n  python-validation:',
-              text,
-              count=1,
-              flags=re.S,
-          )
-          if count != 1:
-              raise SystemExit(f'expected one temporary finalize job, got {count}')
-          path.write_text(updated, encoding='utf-8')
-          PY
-          git rm -f --ignore-unmatch .github/workflows/generate-pr4-ui-fix.yml
-          git diff --check
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .github/workflows/validate.yml index.html data/processed/furusato_data.json
-          git commit -m "Finalize distribution interaction UI fix"
-          git push origin HEAD:improve/ordinary-grant-estimate-20260823
-
   python-validation:
     name: Python data and structure validation
     runs-on: ubuntu-latest
