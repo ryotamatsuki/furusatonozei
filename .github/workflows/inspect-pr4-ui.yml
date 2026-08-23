@@ -1,0 +1,47 @@
+name: Inspect PR4 UI snippets
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print targeted index snippets
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('index.html').read_text(encoding='utf-8')
+          needles = [
+              'afterGrantStatutory',
+              'let currentMetric',
+              'const LABELS',
+              'SIGNED_METRICS',
+              '75％制度参考値',
+              '交付税措置を考慮しない差引参考額',
+              'function downloadCSV',
+              'const headers',
+              'function popupHtml',
+              'distTable',
+              'numericFields',
+          ]
+          for needle in needles:
+              print('\n===== ' + needle + ' =====')
+              start = 0
+              shown = 0
+              while shown < 8:
+                  idx = text.find(needle, start)
+                  if idx < 0:
+                      break
+                  a = max(0, idx - 900)
+                  b = min(len(text), idx + 1800)
+                  print(text[a:b].replace('\r',''))
+                  print('\n--- MATCH END ---')
+                  start = idx + len(needle)
+                  shown += 1
+              print('matches_shown=', shown)
+          PY
