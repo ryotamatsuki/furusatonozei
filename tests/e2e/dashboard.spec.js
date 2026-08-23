@@ -92,6 +92,33 @@ async function waitForMap(page) {
   await expect(page.locator("#mapError")).toBeHidden();
 }
 
+async function selectFirstDistributionBin(page) {
+  await page.waitForFunction(
+    () => {
+      const canvas = document.querySelector("#distChart");
+      const chart = canvas && window.Chart?.getChart?.(canvas);
+      if (!chart) return false;
+      return chart.data.datasets?.[0]?.data?.some((value) => Number(value) > 0);
+    },
+    null,
+    { timeout: 20_000 },
+  );
+  const hit = await page.evaluate(() => {
+    const canvas = document.querySelector("#distChart");
+    const chart = window.Chart.getChart(canvas);
+    const dataset = chart.data.datasets[0].data;
+    const index = dataset.findIndex((value) => Number(value) > 0);
+    if (index < 0) return null;
+    const element = chart.getDatasetMeta(0).data[index];
+    const { x, y, base } = element.getProps(["x", "y", "base"], true);
+    const rect = canvas.getBoundingClientRect();
+    return { x: rect.left + x, y: rect.top + (y + base) / 2 };
+  });
+  expect(hit).not.toBeNull();
+  await page.mouse.click(hit.x, hit.y);
+  await expect(page.locator("#distSelectionText")).toContainText("選択中：");
+}
+
 test("loads the latest year and exposes the complete six-year selector", async ({ page }) => {
   const diagnostics = await openDashboard(page);
 
@@ -194,6 +221,8 @@ test("renders municipality detail, both trend charts, rates, and analysis charts
   );
   await expect(page.locator("#distChart")).toBeVisible();
   await expect(page.locator("#distSummary .summary-card")).not.toHaveCount(0);
+  await expect(page.locator("#distTable")).toContainText("金額帯が未選択です。");
+  await selectFirstDistributionBin(page);
   await expect(page.locator("#distTable")).toContainText("普通交付税考慮額（推計）");
 
   await page.locator('.tab-btn[data-tab="features"]').click();
@@ -210,6 +239,8 @@ test("renders municipality detail, both trend charts, rates, and analysis charts
 
 test("spot-checks five representative municipalities in the history selector", async ({ page }) => {
   const diagnostics = await openDashboard(page);
+  await page.locator('.tab-btn[data-tab="history"]').click();
+  await expect(page.locator("#historyMunicipality")).toBeVisible();
   const labels = [
     recordLabel(topReceipt),
     recordLabel(smallReceipt),
@@ -262,9 +293,13 @@ test("loads the map and opens a municipality popup from a rendered boundary", as
 
   expect(hit).not.toBeNull();
   await page.mouse.click(hit.x, hit.y);
-  await expect(page.locator(".maplibregl-popup")).toBeVisible({ timeout: 10_000 });
-  await expect(page.locator(".maplibregl-popup-content")).toContainText("財政影響額（交付税考慮前）");
-  await expect(page.locator(".maplibregl-popup-content")).toContainText("普通交付税交付決定額");
-  await expect(page.locator(".maplibregl-popup-content")).toContainText("保守的簡便推計");
+  const detailPopup = page
+    .locator(".maplibregl-popup-content")
+    .filter({ hasText: "団体コード" })
+    .last();
+  await expect(detailPopup).toBeVisible({ timeout: 10_000 });
+  await expect(detailPopup).toContainText("財政影響額（交付税考慮前）");
+  await expect(detailPopup).toContainText("普通交付税交付決定額");
+  await expect(detailPopup).toContainText("保守的簡便推計");
   assertBrowserClean(diagnostics);
 });
