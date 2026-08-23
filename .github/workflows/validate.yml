@@ -29,16 +29,20 @@ jobs:
       - name: Install parser dependency
         run: python -m pip install --disable-pip-version-check -r requirements.txt
 
-      - name: Discover ordinary grant sources on implementation branch
+      - name: Inspect ordinary grant sources on implementation branch
         if: ${{ github.ref_name == 'improve/ordinary-grant-estimate-20260823' || github.head_ref == 'improve/ordinary-grant-estimate-20260823' }}
-        run: python scripts/discover_grant_sources.py
+        run: |
+          python scripts/discover_grant_sources.py
+          python scripts/inspect_grant_workbooks.py
 
-      - name: Upload ordinary grant discovery artifact
+      - name: Upload ordinary grant discovery artifacts
         if: ${{ always() && (github.ref_name == 'improve/ordinary-grant-estimate-20260823' || github.head_ref == 'improve/ordinary-grant-estimate-20260823') }}
         uses: actions/upload-artifact@v4
         with:
           name: ordinary-grant-source-discovery-${{ github.run_id }}
-          path: /tmp/grant-source-candidates.json
+          path: |
+            /tmp/grant-source-candidates.json
+            /tmp/grant-workbook-inspection.json
           if-no-files-found: error
 
       - name: Set up Node.js
