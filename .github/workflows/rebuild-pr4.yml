@@ -1,4 +1,4 @@
-name: Finalize PR4 augmented dashboard
+name: Rebuild PR4 augmented dashboard
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  finalize:
+  rebuild:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 4 }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -29,10 +29,11 @@ jobs:
       - name: Install parser dependency
         run: python -m pip install --disable-pip-version-check -r requirements.txt
 
-      - name: Update legacy validators for augmented history schema
+      - name: Update validators and production CI for augmented history schema
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           p=Path('scripts/validate_sources.py')
           text=p.read_text(encoding='utf-8')
@@ -118,6 +119,14 @@ jobs:
           elif new_positions not in text:
               raise SystemExit('validate_repository history schema is unexpected')
           p.write_text(text,encoding='utf-8')
+
+          p=Path('.github/workflows/validate.yml')
+          text=p.read_text(encoding='utf-8')
+          if '\n  repair-pr4:\n' in text:
+              text,count=re.subn(r'\n  repair-pr4:\n.*?\n  python-validation:', '\n  python-validation:', text, count=1, flags=re.S)
+              if count != 1:
+                  raise SystemExit(f'validate.yml repair block matches={count}')
+              p.write_text(text,encoding='utf-8')
           PY
 
       - name: Rebuild from all pinned official sources
@@ -163,16 +172,16 @@ jobs:
 
       - name: Remove implementation-only diagnostics and commit final branch
         run: |
-          git rm -f .ci-trigger-pr4 || true
-          git rm -f .github/workflows/inspect-pr4-ui.yml || true
-          git rm -f .github/workflows/final-pr4-audit.yml || true
-          git rm -f .github/workflows/fix-pr4-validators.yml || true
-          git rm -f scripts/discover_grant_sources.py || true
-          git rm -f scripts/inspect_grant_workbooks.py || true
+          git rm -f --ignore-unmatch .ci-trigger-pr4
+          git rm -f --ignore-unmatch .github/workflows/inspect-pr4-ui.yml
+          git rm -f --ignore-unmatch .github/workflows/final-pr4-audit.yml
+          git rm -f --ignore-unmatch .github/workflows/fix-pr4-validators.yml
+          git rm -f --ignore-unmatch scripts/discover_grant_sources.py
+          git rm -f --ignore-unmatch scripts/inspect_grant_workbooks.py
           git rm -f .github/workflows/rebuild-pr4.yml
           git diff --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add scripts/validate_sources.py scripts/validate_repository.py index.html data/processed/furusato_data.json data/processed/ordinary_grant_reconciliation_report.json
+          git add scripts/validate_sources.py scripts/validate_repository.py .github/workflows/validate.yml index.html data/processed/furusato_data.json data/processed/ordinary_grant_reconciliation_report.json
           git commit -m "Finalize ordinary grant model and full-source validation"
           git push origin HEAD:improve/ordinary-grant-estimate-20260823
