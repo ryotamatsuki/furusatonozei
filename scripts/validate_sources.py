@@ -208,6 +208,11 @@ def audit(*, no_download: bool) -> tuple[list[dict], dict]:
             fail(f"{year}: source identity is not unique")
         receipt_rows = parse_sheet(source, "receipt", receipt_expected, no_download=no_download)
         tax_rows = parse_sheet(source, "tax", tax_expected, no_download=no_download)
+        tax_name_fallback_codes = {
+            str(item["receipt_code6"])[:5]
+            for item in manifest.get("join_corrections", {}).get(ys, [])
+            if item.get("kind") == "tax_name_fallback"
+        }
 
         year_errors_before = len(errors)
         for code, record in by_code.items():
@@ -234,7 +239,7 @@ def audit(*, no_download: bool) -> tuple[list[dict], dict]:
                 "resident_tax_deduction_total": municipal + prefectural,
                 "receipt_source_row": receipt["source_row"],
                 "tax_source_row": tax["source_row"],
-                "tax_source_code6": record["municipality_code6"],
+                "tax_source_code6": None if code in tax_name_fallback_codes else record["municipality_code6"],
                 "receipt_raw_code6": receipt["raw_code6"],
                 "tax_raw_code6": tax["raw_code6"],
                 "tax_source_prefecture": tax["prefecture"],
