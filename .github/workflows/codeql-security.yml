@@ -1,0 +1,48 @@
+name: CodeQL JavaScript / TypeScript security
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "10 4 * * 1"
+permissions:
+  contents: read
+  security-events: write
+jobs:
+  analyze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:javascript-typescript
+      - name: Reject high and critical CodeQL results in this commit
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const file = '../results/javascript.sarif';
+          if (!fs.existsSync(file)) throw Error('CodeQL SARIF missing; refusing false success');
+          const sarif = JSON.parse(fs.readFileSync(file,'utf8'));
+          if (!Array.isArray(sarif.runs) || sarif.runs.length===0) throw Error('Empty CodeQL SARIF');
+          let total=0, high=[];
+          for (const run of sarif.runs) {
+            const components=[run.tool?.driver,...(run.tool?.extensions||[])].filter(Boolean);
+            const allRules=components.flatMap(c=>c.rules||[]);
+            for (const finding of run.results||[]) {
+              total++;
+              const rule=allRules.find(r=>r.id===finding.ruleId)||components[0]?.rules?.[finding.ruleIndex];
+              if (!rule) throw Error('Missing SARIF rule metadata: '+finding.ruleId);
+              const sev=Number(rule.properties?.['security-severity']??0);
+              if (sev>=7) high.push({rule:finding.ruleId,score:sev,file:finding.locations?.[0]?.physicalLocation?.artifactLocation?.uri});
+            }
+          }
+          console.log(JSON.stringify({totalFindings:total,highCritical:high.length,findings:high.slice(0,30)},null,2));
+          if (high.length) process.exitCode=1;
+          NODE
+
