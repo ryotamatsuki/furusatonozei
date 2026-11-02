@@ -32,10 +32,11 @@ jobs:
           if (!Array.isArray(sarif.runs) || sarif.runs.length===0) throw Error('Empty CodeQL SARIF');
           let total=0, high=[];
           for (const run of sarif.runs) {
-            const rules=run.tool?.driver?.rules||[];
+            const components=[run.tool?.driver,...(run.tool?.extensions||[])].filter(Boolean);
+            const allRules=components.flatMap(c=>c.rules||[]);
             for (const finding of run.results||[]) {
               total++;
-              const rule=rules[finding.ruleIndex]||rules.find(r=>r.id===finding.ruleId);
+              const rule=allRules.find(r=>r.id===finding.ruleId)||components[0]?.rules?.[finding.ruleIndex];
               if (!rule) throw Error('Missing SARIF rule metadata: '+finding.ruleId);
               const sev=Number(rule.properties?.['security-severity']??0);
               if (sev>=7) high.push({rule:finding.ruleId,score:sev,file:finding.locations?.[0]?.physicalLocation?.artifactLocation?.uri});
@@ -44,3 +45,4 @@ jobs:
           console.log(JSON.stringify({totalFindings:total,highCritical:high.length,findings:high.slice(0,30)},null,2));
           if (high.length) process.exitCode=1;
           NODE
+
